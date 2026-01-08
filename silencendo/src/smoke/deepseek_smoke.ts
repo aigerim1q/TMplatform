@@ -8,7 +8,7 @@ async function smokeTest() {
   
   try {
     // Initialize DeepSeek client
-    const llm = new DeepSeekLLM();
+   const llm = new DeepSeekLLM();
     console.log('✅ DeepSeek runtime connected');
     
     // Test basic generation
