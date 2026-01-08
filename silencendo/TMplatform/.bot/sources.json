@@ -1,0 +1,17 @@
+{
+  "allSources": [
+    {
+      "id": "2fa5d4ac-abab-4007-beaf-cbf52a8d163c",
+      "number": 1,
+      "type": "file",
+      "path": "/Users/Yusuf/Desktop/test1.txt",
+      "title": "test1.txt",
+      "createdAt": "2026-01-01T15:14:11.586Z",
+      "metadata": {}
+    }
+  ],
+  "activeSourceIds": [
+    "2fa5d4ac-abab-4007-beaf-cbf52a8d163c"
+  ],
+  "nextSourceNumber": 2
+}

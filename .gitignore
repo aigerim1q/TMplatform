@@ -2,3 +2,10 @@
 silencendo/node_modules
 silencendo/.env
 silencendo/dist
+# Silencendo
+silencendo/.env
+silencendo/**/.env
+silencendo/node_modules/
+silencendo/**/node_modules/
+silencendo/dist/
+silencendo/**/dist/
