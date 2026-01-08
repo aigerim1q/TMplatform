@@ -1,0 +1,4 @@
+# Silencendo
+silencendo/node_modules
+silencendo/.env
+silencendo/dist
