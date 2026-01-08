@@ -1,0 +1,12 @@
+{
+  "active": {
+    "project": null,
+    "stage": null,
+    "task": null,
+    "goals": [],
+    "constraints": [],
+    "decisions": [],
+    "next_steps": []
+  },
+  "history": []
+}
