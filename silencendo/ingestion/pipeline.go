@@ -1,7 +1,6 @@
 package ingestion
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"

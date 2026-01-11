@@ -16,8 +16,8 @@ type ChunkingOptions struct {
 }
 
 type IngestionResult struct {
-	Chunks  []Chunk `json:"chunks"`
-	SourceID string `json:"sourceId"`
-	Status  string `json:"status"`
-	Error   string `json:"error,omitempty"`
+	Chunks   []Chunk `json:"chunks"`
+	SourceID string  `json:"sourceId"`
+	Status   string  `json:"status"`
+	Error    string  `json:"error,omitempty"`
 }

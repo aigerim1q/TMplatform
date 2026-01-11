@@ -3,7 +3,6 @@ package context
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -41,7 +40,7 @@ func (cm *ContextManager) ensureBotDir() {
 
 func (cm *ContextManager) loadContext() {
 	cm.ensureBotDir()
-	
+
 	if _, err := os.Stat(CONTEXT_FILE); err == nil {
 		data, err := os.ReadFile(CONTEXT_FILE)
 		if err == nil {
@@ -110,7 +109,7 @@ func (cm *ContextManager) AddNextStep(step string) {
 func (cm *ContextManager) ResetContext() {
 	// Add current context to history
 	cm.state.History = append(cm.state.History, cm.state.Active)
-	
+
 	// Reset to default context
 	cm.state.Active = ContextType{
 		Project:     nil,
@@ -128,7 +127,7 @@ func (cm *ContextManager) GetContextSummary() string {
 	project := ""
 	stage := ""
 	task := ""
-	
+
 	if cm.state.Active.Project != nil {
 		project = *cm.state.Active.Project
 	}
@@ -138,9 +137,9 @@ func (cm *ContextManager) GetContextSummary() string {
 	if cm.state.Active.Task != nil {
 		task = *cm.state.Active.Task
 	}
-	
+
 	var summaryParts []string
-	
+
 	if project != "" {
 		summaryParts = append(summaryParts, "Project: "+project)
 	}
@@ -150,7 +149,7 @@ func (cm *ContextManager) GetContextSummary() string {
 	if task != "" {
 		summaryParts = append(summaryParts, "Task: "+task)
 	}
-	
+
 	if len(cm.state.Active.Goals) > 0 {
 		summaryParts = append(summaryParts, "Goals: "+strconv.Itoa(len(cm.state.Active.Goals))+" items")
 	}
@@ -163,6 +162,6 @@ func (cm *ContextManager) GetContextSummary() string {
 	if len(cm.state.Active.NextSteps) > 0 {
 		summaryParts = append(summaryParts, "Next Steps: "+strconv.Itoa(len(cm.state.Active.NextSteps))+" items")
 	}
-	
+
 	return strings.Join(summaryParts, "\n")
 }

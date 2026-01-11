@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 const CHUNKS_FILE = ".bot/chunks.json"
@@ -103,7 +102,7 @@ func (cm *ChunkManager) GetChunksByIds(ids []string) []Chunk {
 	for _, id := range ids {
 		idMap[id] = true
 	}
-	
+
 	for _, chunk := range cm.storage.Chunks {
 		if idMap[chunk.ChunkID] {
 			result = append(result, chunk)

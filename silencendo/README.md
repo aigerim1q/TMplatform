@@ -166,3 +166,19 @@ npm run build
 - openai - OpenAI API client (compatible with DeepSeek)
 - dotenv - Environment variable management
 - uuid - Unique identifier generation
+
+## Troubleshooting Common Issues
+
+### Chatbot Not Answering Questions Correctly
+
+If the chatbot is returning generic responses like "This document is about: Artificial Intelligence",
+it's likely using the mock LLM instead of a real one. This happens when no `DEEPSEEK_API_KEY` is configured.
+
+To resolve this:
+1. Configure a real LLM (recommended): Set the `DEEPSEEK_API_KEY` environment variable
+2. Or understand that the mock LLM provides sample responses for demonstration purposes
+
+The mock LLM has been improved to be more transparent about its limitations and provides tips
+on how to configure a real LLM for better results.
+
+For setup instructions, run: `./setup_example.sh`

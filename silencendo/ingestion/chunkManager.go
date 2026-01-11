@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 const CHUNKS_FILE = ".bot/chunks.json"

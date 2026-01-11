@@ -1,18 +1,16 @@
 package cli
 
 import (
-	"bufio"
-	"context"
+	stdcontext "context"
 	"fmt"
-	"os"
 	"regexp"
-	"strconv"
-	"strings"
 	"silencendo/context"
 	"silencendo/ingestion"
 	"silencendo/llm"
 	"silencendo/retrieval"
 	"silencendo/sources"
+	"strconv"
+	"strings"
 )
 
 type CLIInterface struct {
@@ -30,15 +28,15 @@ type CLIInterface struct {
 func NewCLIInterface() *CLIInterface {
 	ctxManager := context.NewContextManager()
 	ctxCommands := context.NewContextCommands(ctxManager)
-	
+
 	sourceManager := sources.NewSourceManager()
 	sourceCommands := sources.NewSourceCommands(sourceManager)
-	
+
 	chunkManager := ingestion.NewChunkManager()
 	ingestionPipeline := ingestion.NewIngestionPipeline(nil)
 	retriever := retrieval.NewRetriever(chunkManager, nil)
 	llmClient := llm.CreateLLMClient()
-	
+
 	return &CLIInterface{
 		ctxManager:        ctxManager,
 		ctxCommands:       ctxCommands,
@@ -53,36 +51,36 @@ func NewCLIInterface() *CLIInterface {
 }
 
 func (c *CLIInterface) Start() error {
-	fmt.Println("🤖 Knowledge + Planning Bot - MVP")
-	fmt.Println("Type commands starting with / or ask questions directly")
-	fmt.Println("Available commands: /project, /stage, /task, /context, /source, /mode, /help")
-	fmt.Println("Type /help for more information\n")
+	return fmt.Errorf("interactive shell removed; use unified runner to process messages")
+}
 
-	scanner := bufio.NewScanner(os.Stdin)
-	
-	fmt.Print("> ")
-	for scanner.Scan() {
-		input := strings.TrimSpace(scanner.Text())
-		
-		if strings.ToLower(input) == "/exit" || strings.ToLower(input) == "/quit" {
-			fmt.Println("Goodbye!")
-			break
-		}
-		
-		if strings.HasPrefix(input, "/") {
-			if err := c.handleCommand(input); err != nil {
-				fmt.Printf("Error handling command: %v\n", err)
-			}
-		} else {
-			if err := c.handleInput(input); err != nil {
-				fmt.Printf("Error handling input: %v\n", err)
-			}
-		}
-		
-		fmt.Print("> ")
+// HandleMessage processes a single user message without performing any stdin reads.
+// Returns true when the caller should exit (e.g., /exit), otherwise false.
+func (c *CLIInterface) HandleMessage(ctx stdcontext.Context, rawInput string) (bool, error) {
+	input := strings.TrimSpace(rawInput)
+	_ = ctx
+	if input == "" {
+		return false, nil
 	}
-	
-	return scanner.Err()
+
+	lower := strings.ToLower(input)
+	if lower == "/exit" || lower == "/quit" {
+		fmt.Println("Goodbye!")
+		return true, nil
+	}
+
+	if strings.HasPrefix(input, "/") {
+		if err := c.handleCommand(input); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+
+	if err := c.handleInput(input); err != nil {
+		return false, err
+	}
+
+	return false, nil
 }
 
 func (c *CLIInterface) handleCommand(input string) error {
@@ -92,7 +90,7 @@ func (c *CLIInterface) handleCommand(input string) error {
 	if len(parts) > 1 {
 		args = parts[1:]
 	}
-	
+
 	switch command {
 	case "help":
 		c.showHelp()
@@ -120,7 +118,7 @@ func (c *CLIInterface) handleCommand(input string) error {
 	default:
 		fmt.Printf("Unknown command: %s. Type /help for available commands.\n", command)
 	}
-	
+
 	return nil
 }
 
@@ -165,13 +163,13 @@ func (c *CLIInterface) handleRedactCommand(args []string) error {
 
 	fmt.Printf("Redaction completed. %d chunks were modified.\n", redactedCount)
 	fmt.Printf("Pattern \"%s\" has been replaced with [REDACTED] in source ID: %s\n", redactPattern, sourceId)
-	
+
 	return nil
 }
 
 func (c *CLIInterface) handleInput(input string) error {
 	intent := c.detectIntent(input)
-	
+
 	if intent == "edit" {
 		return c.handleEditRequest(input)
 	} else {
@@ -181,11 +179,11 @@ func (c *CLIInterface) handleInput(input string) error {
 
 func (c *CLIInterface) detectIntent(input string) string {
 	inputLower := strings.ToLower(input)
-	
+
 	// Weighted scoring for intent detection
 	editScore := 0
 	questionScore := 0
-	
+
 	// Strong indicators of edit requests with weights
 	editKeywords := map[string]int{
 		"edit":     2,
@@ -208,108 +206,108 @@ func (c *CLIInterface) detectIntent(input string) string {
 		"create":   3,
 		"generate": 2,
 	}
-	
+
 	// Strong indicators of questions with weights
 	questionKeywords := map[string]int{
-		"what":  2,
-		"who":   2,
-		"where": 2,
-		"when":  2,
-		"why":   2,
-		"how":   2,
-		"is":    1,
-		"are":   1,
-		"can":   1,
-		"could": 1,
-		"would": 1,
-		"should": 1,
-		"does":  1,
-		"do":    1,
-		"did":   1,
-		"have":  1,
-		"has":   1,
-		"had":   1,
-		"explain":    2,
-		"describe":   2,
-		"summarize":  2,
+		"what":      2,
+		"who":       2,
+		"where":     2,
+		"when":      2,
+		"why":       2,
+		"how":       2,
+		"is":        1,
+		"are":       1,
+		"can":       1,
+		"could":     1,
+		"would":     1,
+		"should":    1,
+		"does":      1,
+		"do":        1,
+		"did":       1,
+		"have":      1,
+		"has":       1,
+		"had":       1,
+		"explain":   2,
+		"describe":  2,
+		"summarize": 2,
 	}
-	
+
 	// Check for edit keywords
 	for keyword, weight := range editKeywords {
 		if strings.Contains(inputLower, keyword) {
 			editScore += weight
 		}
 	}
-	
+
 	// Check for question keywords
 	for keyword, weight := range questionKeywords {
 		if strings.Contains(inputLower, keyword) {
 			questionScore += weight
 		}
 	}
-	
+
 	// Edit patterns with weights
 	editPatterns := []struct {
 		pattern *regexp.Regexp
 		weight  int
 	}{
-		{regexp.MustCompile(`(?i)^edit\s+`), 4},                              // "edit this"
-		{regexp.MustCompile(`(?i)^change\s+`), 4},                            // "change this"
-		{regexp.MustCompile(`(?i)^update\s+`), 4},                            // "update this"
-		{regexp.MustCompile(`(?i)change.*to`), 3},                           // "change X to Y"
-		{regexp.MustCompile(`(?i)replace.*with`), 3},                        // "replace X with Y"
-		{regexp.MustCompile(`(?i)update.*to`), 3},                           // "update X to Y"
-		{regexp.MustCompile(`(?i)fix.*to`), 3},                              // "fix X to Y"
-		{regexp.MustCompile(`(?i)correct.*to`), 3},                          // "correct X to Y"
-		{regexp.MustCompile(`(?i)make.*be`), 3},                             // "make this be X"
-		{regexp.MustCompile(`(?i)set.*to`), 3},                              // "set this to X"
-		{regexp.MustCompile(`(?i)add\s+.*\s+and\s+.*\s+is\s+to`), 5},       // "add John and his job is to" - high weight for this specific pattern
-		{regexp.MustCompile(`(?i)add\s+.*\s+to\s+the\s+document`), 4},       // "add John to the document"
-		{regexp.MustCompile(`(?i)add\s+a?\s*person\s+named`), 4},            // "add a person named"
-		{regexp.MustCompile(`(?i)add\s+.*\s+with\s+task`), 4},               // "add John with task"
-		{regexp.MustCompile(`(?i)add\s+.*\s+and\s+assign`), 4},              // "add John and assign"
-		{regexp.MustCompile(`(?i)add\s+\w+\s+and\s+.*\s+is\s+`), 5},        // "add X and his/their Y is Z" - pattern matching the user's example
+		{regexp.MustCompile(`(?i)^edit\s+`), 4},                       // "edit this"
+		{regexp.MustCompile(`(?i)^change\s+`), 4},                     // "change this"
+		{regexp.MustCompile(`(?i)^update\s+`), 4},                     // "update this"
+		{regexp.MustCompile(`(?i)change.*to`), 3},                     // "change X to Y"
+		{regexp.MustCompile(`(?i)replace.*with`), 3},                  // "replace X with Y"
+		{regexp.MustCompile(`(?i)update.*to`), 3},                     // "update X to Y"
+		{regexp.MustCompile(`(?i)fix.*to`), 3},                        // "fix X to Y"
+		{regexp.MustCompile(`(?i)correct.*to`), 3},                    // "correct X to Y"
+		{regexp.MustCompile(`(?i)make.*be`), 3},                       // "make this be X"
+		{regexp.MustCompile(`(?i)set.*to`), 3},                        // "set this to X"
+		{regexp.MustCompile(`(?i)add\s+.*\s+and\s+.*\s+is\s+to`), 5},  // "add John and his job is to" - high weight for this specific pattern
+		{regexp.MustCompile(`(?i)add\s+.*\s+to\s+the\s+document`), 4}, // "add John to the document"
+		{regexp.MustCompile(`(?i)add\s+a?\s*person\s+named`), 4},      // "add a person named"
+		{regexp.MustCompile(`(?i)add\s+.*\s+with\s+task`), 4},         // "add John with task"
+		{regexp.MustCompile(`(?i)add\s+.*\s+and\s+assign`), 4},        // "add John and assign"
+		{regexp.MustCompile(`(?i)add\s+\w+\s+and\s+.*\s+is\s+`), 5},   // "add X and his/their Y is Z" - pattern matching the user's example
 	}
-	
+
 	// Question patterns with weights
 	questionPatterns := []struct {
 		pattern *regexp.Regexp
 		weight  int
 	}{
-		{regexp.MustCompile(`(?i)^(what|who|where|when|why|how)\s+`), 3},     // "what is", "who is", etc.
-		{regexp.MustCompile(`.*\?$`), 3},                                 // Ends with question mark
-		{regexp.MustCompile(`(?i)^(is|are|can|could|would|should)\s+`), 2},   // "is this", "can you", etc.
+		{regexp.MustCompile(`(?i)^(what|who|where|when|why|how)\s+`), 3},   // "what is", "who is", etc.
+		{regexp.MustCompile(`.*\?$`), 3},                                   // Ends with question mark
+		{regexp.MustCompile(`(?i)^(is|are|can|could|would|should)\s+`), 2}, // "is this", "can you", etc.
 	}
-	
+
 	// Apply pattern weights
 	for _, ep := range editPatterns {
 		if ep.pattern.MatchString(input) {
 			editScore += ep.weight
 		}
 	}
-	
+
 	for _, qp := range questionPatterns {
 		if qp.pattern.MatchString(input) {
 			questionScore += qp.weight
 		}
 	}
-	
+
 	// Additional context analysis
 	if strings.HasSuffix(input, "?") {
 		questionScore += 2
 	}
-	
+
 	if c.containsEditIndicators(inputLower) {
 		editScore += 1
 	}
-	
+
 	// Special handling for the specific case from user feedback
 	// "add Aidana and her task is similar to Beka aga" should be detected as edit
 	if strings.Contains(inputLower, "add") && strings.Contains(inputLower, "and") && strings.Contains(inputLower, "is") {
 		// This pattern often indicates adding a person/task with details
 		editScore += 2
 	}
-	
+
 	// Return the intent with higher score, but with some adjustments for safety
 	if editScore > questionScore {
 		return "edit"
@@ -342,7 +340,7 @@ func (c *CLIInterface) containsEditIndicators(inputLower string) bool {
 		"put in",
 		"place in",
 	}
-	
+
 	for _, indicator := range editIndicators {
 		if strings.Contains(inputLower, indicator) {
 			return true
@@ -362,16 +360,16 @@ func (c *CLIInterface) handleEditRequest(instruction string) error {
 	}
 
 	ctx := c.ctxManager.GetContext()
-	
+
 	// Determine if this is an append/add operation vs a modification
 	instructionLower := strings.ToLower(instruction)
 	isAddOperation := strings.Contains(instructionLower, "add") ||
 		strings.Contains(instructionLower, "create") ||
 		strings.Contains(instructionLower, "insert")
-	
+
 	textToEdit := ""
 	editInstruction := instruction
-	
+
 	if isAddOperation && len(relevantChunks) == 0 {
 		// For add operations with no relevant chunks, we'll work with the original source content
 		activeSources := c.sourceManager.GetActiveSources()
@@ -395,20 +393,20 @@ func (c *CLIInterface) handleEditRequest(instruction string) error {
 		// If no relevant chunks and not an add operation, treat as a general edit
 		textToEdit = instruction
 	}
-	
+
 	// Call the LLM to perform the edit
-	result, err := c.llmClient.Edit(context.Background(), textToEdit, editInstruction, relevantChunks, ctx)
+	result, err := c.llmClient.Edit(stdcontext.Background(), textToEdit, editInstruction, relevantChunks, ctx)
 	if err != nil {
 		return fmt.Errorf("error during edit: %w", err)
 	}
-	
+
 	fmt.Println("\n┌─────────────────────────────────────────────────────────┐")
 	fmt.Println("│                    📝 EDIT RESULT                     │")
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	
+
 	// Split the result into lines and handle each line
 	allLines := strings.Split(result, "\n")
-	
+
 	for i, line := range allLines {
 		if i == 0 {
 			// Handle the first line specially
@@ -418,7 +416,7 @@ func (c *CLIInterface) handleEditRequest(instruction string) error {
 				// Split first line if too long
 				firstPart := line[:68]
 				fmt.Printf("│ %-68s │\n", firstPart)
-				
+
 				// Handle remaining parts of the first line
 				remaining := line[68:]
 				for len(remaining) > 0 {
@@ -454,12 +452,12 @@ func (c *CLIInterface) handleEditRequest(instruction string) error {
 		}
 	}
 	fmt.Println("└─────────────────────────────────────────────────────────┘\n")
-	
+
 	// Attempt to update the source files with the edited content
 	if result != textToEdit {
 		return c.attemptToUpdateSourceFiles(relevantChunks, result)
 	}
-	
+
 	return nil
 }
 
@@ -469,12 +467,12 @@ func (c *CLIInterface) attemptToUpdateSourceFiles(relevantChunks []ingestion.Chu
 	for _, chunk := range relevantChunks {
 		sourceIds[chunk.SourceID] = true
 	}
-	
+
 	var uniqueSourceIds []string
 	for id := range sourceIds {
 		uniqueSourceIds = append(uniqueSourceIds, id)
 	}
-	
+
 	// If no source IDs from chunks, try to get from active sources
 	if len(uniqueSourceIds) == 0 {
 		activeSources := c.sourceManager.GetActiveSources()
@@ -494,7 +492,7 @@ func (c *CLIInterface) attemptToUpdateSourceFiles(relevantChunks []ingestion.Chu
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -504,7 +502,7 @@ func (c *CLIInterface) updateSingleSourceFile(sourceId string, editedContent str
 	if originalContent == "" {
 		return nil
 	}
-	
+
 	// Determine if this is likely a complete file rewrite by analyzing the edit request
 	// If the edited content looks like a complete document (contains multiple lines/sections)
 	// and is significantly different from individual chunks, treat it as a complete replacement
@@ -512,21 +510,21 @@ func (c *CLIInterface) updateSingleSourceFile(sourceId string, editedContent str
 	if len(relevantChunks) > 0 {
 		instruction = relevantChunks[0].Text
 	}
-	
+
 	isLikelyCompleteRewrite := c.isCompleteRewriteInstruction(instruction) ||
 		c.isCompleteDocumentContent(editedContent, originalContent)
-	
+
 	// Check if the edit request is an add operation
 	isAddOperation := strings.Contains(strings.ToLower(instruction), "add") ||
 		strings.Contains(strings.ToLower(instruction), "create") ||
 		strings.Contains(strings.ToLower(instruction), "insert")
-	
+
 	if isLikelyCompleteRewrite {
 		// For complete rewrites (like deleting items), replace the entire file
 		if c.sourceManager.UpdateSourceContent(sourceId, editedContent) {
 			fmt.Println("\n📝 Source file updated successfully!")
 			fmt.Println("The changes have been saved to the original document.")
-			
+
 			// After updating the file, we should re-ingest it to update the chunks
 			source := c.sourceManager.GetSourceByID(sourceId)
 			if source != nil {
@@ -539,18 +537,18 @@ func (c *CLIInterface) updateSingleSourceFile(sourceId string, editedContent str
 		updatedContent := originalContent + "\n\n" + editedContent
 		if c.sourceManager.UpdateSourceContent(sourceId, updatedContent) {
 			fmt.Println("\n📝 New content added to the source file!")
-			
+
 			// After updating the file, we should re-ingest it to update the chunks
 			source := c.sourceManager.GetSourceByID(sourceId)
 			if source != nil {
 				fmt.Println("\n💡 Tip: Run '/ingest' to update the knowledge base with the new content.")
-				fmt.Printf("   Source: %d | %s | %s\n", source.Number, source.ID[:4], source.Title)
+				fmt.Printf("   Source: [Active] | id : %d | document name : %s\n", source.Number, source.Title)
 			}
 		}
 	} else {
 		// For partial edits, try to find and replace specific content
 		var updatedContent string
-		
+
 		// Strategy 1: Try to find exact matches of relevant chunks
 		for _, chunk := range relevantChunks {
 			if strings.Contains(originalContent, chunk.Text) {
@@ -558,23 +556,23 @@ func (c *CLIInterface) updateSingleSourceFile(sourceId string, editedContent str
 				break
 			}
 		}
-		
+
 		// Strategy 2: If no exact match, try fuzzy matching for partial content
 		if updatedContent == "" || updatedContent == originalContent {
 			updatedContent = c.attemptFuzzyReplacement(originalContent, relevantChunks, editedContent)
 		}
-		
+
 		// If we found content to update, save it
 		if updatedContent != "" && updatedContent != originalContent {
 			if c.sourceManager.UpdateSourceContent(sourceId, updatedContent) {
 				fmt.Println("\n📝 Source file updated successfully!")
 				fmt.Println("The changes have been saved to the original document.")
-				
+
 				// After updating the file, we should re-ingest it to update the chunks
 				source := c.sourceManager.GetSourceByID(sourceId)
 				if source != nil {
 					fmt.Println("\n💡 Tip: Run '/ingest' to update the knowledge base with the new content.")
-					fmt.Printf("   Source: %d | %s | %s\n", source.Number, source.ID[:4], source.Title)
+					fmt.Printf("   Source: [Active] | id : %d | document name : %s\n", source.Number, source.Title)
 				}
 			}
 		} else {
@@ -582,7 +580,7 @@ func (c *CLIInterface) updateSingleSourceFile(sourceId string, editedContent str
 			return c.showProposedContent(editedContent)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -592,10 +590,10 @@ func (c *CLIInterface) showProposedContent(editedContent string) error {
 	fmt.Println("┌─────────────────────────────────────────────────────────┐")
 	fmt.Println("│                PROPOSED FILE CONTENT                  │")
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	
+
 	// Display the edited content with proper formatting
 	allLines := strings.Split(editedContent, "\n")
-	
+
 	for _, line := range allLines {
 		if len(line) <= 68 {
 			fmt.Printf("│ %-68s │\n", line)
@@ -615,39 +613,39 @@ func (c *CLIInterface) showProposedContent(editedContent string) error {
 		}
 	}
 	fmt.Println("└─────────────────────────────────────────────────────────┘")
-	
+
 	// Show source information
 	activeSources := c.sourceManager.GetActiveSources()
 	if len(activeSources) > 0 {
 		fmt.Println("\n💡 Tip: Run '/ingest' to update the knowledge base after manual changes.")
 		var sourceInfo []string
 		for _, s := range activeSources {
-			sourceInfo = append(sourceInfo, fmt.Sprintf("%d | %s | %s", s.Number, s.ID[:4], s.Title))
+			sourceInfo = append(sourceInfo, fmt.Sprintf("[Active] | id : %d | document name : %s", s.Number, s.Title))
 		}
 		fmt.Printf("   Active sources: %s\n", strings.Join(sourceInfo, ", "))
 	}
-	
+
 	return nil
 }
 
 func (c *CLIInterface) isCompleteRewriteInstruction(instruction string) bool {
 	deleteKeywords := []string{"delete", "remove", "erase", "eliminate", "get rid of", "clear out"}
 	rewriteKeywords := []string{"rewrite", "reformat", "restructure", "update completely"}
-	
+
 	lowerInstruction := strings.ToLower(instruction)
-	
+
 	for _, keyword := range deleteKeywords {
 		if strings.Contains(lowerInstruction, keyword) {
 			return true
 		}
 	}
-	
+
 	for _, keyword := range rewriteKeywords {
 		if strings.Contains(lowerInstruction, keyword) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -656,7 +654,7 @@ func (c *CLIInterface) isCompleteDocumentContent(editedContent string, originalC
 	hasMultipleSections := strings.Count(editedContent, "\n") > 3
 	hasListMarkers := regexp.MustCompile(`[-*•]\s|^\d+\.`).MatchString(editedContent)
 	hasHeaders := regexp.MustCompile(`^\s*#+\s|\b[A-Z][A-Z\s]*:\s*$`).MatchString(editedContent)
-	
+
 	// If it has document-like structure and is reasonably complete compared to original
 	return (hasMultipleSections || hasListMarkers || hasHeaders) &&
 		float64(len(editedContent)) > float64(len(originalContent))*0.5
@@ -686,9 +684,9 @@ type match struct {
 
 func (c *CLIInterface) findBestMatchingSection(content string, target string) []match {
 	targetLines := strings.FieldsFunc(target, func(c rune) bool { return c == '\n' })
-	
+
 	var matches []match
-	
+
 	for i := 0; i < len(content); i++ {
 		for _, targetLine := range targetLines {
 			if strings.Contains(content[i:], targetLine) {
@@ -701,7 +699,7 @@ func (c *CLIInterface) findBestMatchingSection(content string, target string) []
 			}
 		}
 	}
-	
+
 	// Sort by score (highest first)
 	for i := 0; i < len(matches)-1; i++ {
 		for j := i + 1; j < len(matches); j++ {
@@ -710,7 +708,7 @@ func (c *CLIInterface) findBestMatchingSection(content string, target string) []
 			}
 		}
 	}
-	
+
 	return matches
 }
 
@@ -719,37 +717,37 @@ func (c *CLIInterface) calculateSimilarity(text1 string, text2 string) float64 {
 	for _, word := range strings.Fields(text1) {
 		words1[strings.ToLower(word)] = true
 	}
-	
+
 	words2 := make(map[string]bool)
 	for _, word := range strings.Fields(text2) {
 		words2[strings.ToLower(word)] = true
 	}
-	
+
 	intersection := 0
 	for word := range words1 {
 		if words2[word] {
 			intersection++
 		}
 	}
-	
+
 	union := len(words1) + len(words2) - intersection
-	
+
 	if union == 0 {
 		return 0
 	}
-	
+
 	return float64(intersection) / float64(union)
 }
 
 func (c *CLIInterface) handleQuestion(question string) error {
 	var relevantChunks []ingestion.Chunk
-	
+
 	if c.groundingMode != "general" {
 		// Get active sources and retrieve relevant chunks
 		activeSourceIds := c.sourceManager.GetActiveSourceIds()
 		retrievalResult := c.retriever.Retrieve(question, activeSourceIds)
 		relevantChunks = retrievalResult.Chunks
-		
+
 		// In strict mode, only return if no chunks found
 		if len(relevantChunks) == 0 && c.groundingMode == "strict" {
 			fmt.Println("In strict mode: No relevant information found in the provided sources to answer this question.")
@@ -758,18 +756,18 @@ func (c *CLIInterface) handleQuestion(question string) error {
 	}
 
 	ctx := c.ctxManager.GetContext()
-	answer, err := c.llmClient.Answer(context.Background(), question, relevantChunks, ctx)
+	answer, err := c.llmClient.Answer(stdcontext.Background(), question, relevantChunks, ctx)
 	if err != nil {
 		return fmt.Errorf("error processing question: %w", err)
 	}
-	
+
 	fmt.Println("\n┌─────────────────────────────────────────────────────────┐")
 	fmt.Println("│                     🤖 AI RESPONSE                     │")
 	fmt.Println("├─────────────────────────────────────────────────────────┤")
-	
+
 	// Split the answer into lines and handle each line
 	allLines := strings.Split(answer, "\n")
-	
+
 	for i, line := range allLines {
 		if i == 0 {
 			// Handle the first line specially
@@ -779,7 +777,7 @@ func (c *CLIInterface) handleQuestion(question string) error {
 				// Split first line if too long
 				firstPart := line[:68]
 				fmt.Printf("│ %-68s │\n", firstPart)
-				
+
 				// Handle remaining parts of the first line
 				remaining := line[68:]
 				for len(remaining) > 0 {
@@ -815,7 +813,7 @@ func (c *CLIInterface) handleQuestion(question string) error {
 		}
 	}
 	fmt.Println("└─────────────────────────────────────────────────────────┘\n")
-	
+
 	return nil
 }
 
@@ -837,7 +835,7 @@ func (c *CLIInterface) handleModeCommand(args []string) {
 
 func (c *CLIInterface) handleIngestCommand() error {
 	activeSources := c.sourceManager.GetActiveSources()
-	
+
 	if len(activeSources) == 0 {
 		fmt.Println("No active sources to ingest. Use /source use <id> to activate sources first.")
 		return nil
@@ -848,31 +846,31 @@ func (c *CLIInterface) handleIngestCommand() error {
 	if len(activeSources) > 0 {
 		var sourceList []string
 		for _, source := range activeSources {
-			sourceList = append(sourceList, fmt.Sprintf("  - %d | %s", source.Number, source.Title))
+			sourceList = append(sourceList, fmt.Sprintf("  - [Active] | id : %d | document name : %s", source.Number, source.Title))
 		}
 		fmt.Printf("Sources to be processed:\n%s\n\n", strings.Join(sourceList, "\n"))
 	}
-	
+
 	for _, source := range activeSources {
-		fmt.Printf("\nProcessing source: %d | %s\n", source.Number, source.Title)
-		
+		fmt.Printf("\nProcessing source: [Active] | id : %d | document name : %s\n", source.Number, source.Title)
+
 		// Clear old chunks from this source before adding new ones
 		c.chunkManager.RemoveChunksBySource(source.ID)
-		
+
 		result, err := c.ingestionPipeline.ProcessSource(source)
 		if err != nil {
-			fmt.Printf("✗ Error processing %d | %s: %v\n", source.Number, source.Title, err)
+			fmt.Printf("✗ Error processing [Active] | id : %d | document name : %s: %v\n", source.Number, source.Title, err)
 			continue
 		}
-		
+
 		if result.Status == "success" {
 			c.chunkManager.AddChunks(result.Chunks)
-			fmt.Printf("✓ Successfully processed %d chunks from %d | %s\n", len(result.Chunks), source.Number, source.Title)
+			fmt.Printf("✓ Successfully processed %d chunks from [Active] | id : %d | document name : %s\n", len(result.Chunks), source.Number, source.Title)
 		} else {
-			fmt.Printf("✗ Error processing %d | %s: %s\n", source.Number, source.Title, result.Error)
+			fmt.Printf("✗ Error processing [Active] | id : %d | document name : %s: %s\n", source.Number, source.Title, result.Error)
 		}
 	}
-	
+
 	fmt.Println("\nIngestion completed!")
 	return nil
 }
@@ -904,5 +902,6 @@ func (c *CLIInterface) showHelp() {
 	fmt.Println("- Use /source remove <id> to completely remove a source from the system")
 	fmt.Println("- Sources can be referenced by number (1, 2, 3) or partial ID (abc1, def2)")
 	fmt.Println("- Ask questions directly (without /) for Q&A mode")
+	fmt.Println("- Source list format: [Active/Inactive] | id : <number> | document name : <title>")
 	fmt.Println("")
 }

@@ -1,7 +1,6 @@
 package ingestion
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -24,7 +23,7 @@ func NewIngestionPipeline(options *ChunkingOptions) *IngestionPipeline {
 		ChunkSize: 1000,
 		Overlap:   150,
 	}
-	
+
 	if options != nil {
 		if options.ChunkSize > 0 {
 			opts.ChunkSize = options.ChunkSize
@@ -33,7 +32,7 @@ func NewIngestionPipeline(options *ChunkingOptions) *IngestionPipeline {
 			opts.Overlap = options.Overlap
 		}
 	}
-	
+
 	return &IngestionPipeline{
 		chunkingOptions: opts,
 	}

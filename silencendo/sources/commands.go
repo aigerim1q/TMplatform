@@ -52,7 +52,7 @@ func (sc *SourceCommands) handleAddCommand(args []string) string {
 	}
 
 	source := sc.manager.AddSource(sourceType, path)
-	return fmt.Sprintf("Added source: %d | %s | %s", source.Number, source.ID[:8], source.Title)
+	return fmt.Sprintf("Added source: [Inactive] | id : %d | document name : %s", source.Number, source.Title)
 }
 
 func (sc *SourceCommands) handleListCommand() string {
@@ -70,12 +70,12 @@ func (sc *SourceCommands) handleListCommand() string {
 	}
 
 	for _, source := range sources {
-		status := " "
+		status := "Inactive"
 		if activeIds[source.ID] {
-			status = "*"
+			status = "Active"
 		}
-		result.WriteString(fmt.Sprintf("%s %d | %s | %s | %s\n", 
-			status, source.Number, source.ID[:8], source.Type, source.Title))
+		result.WriteString(fmt.Sprintf("[%s] | id : %d | document name : %s\n",
+			status, source.Number, source.Title))
 	}
 
 	return result.String()

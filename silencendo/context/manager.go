@@ -3,7 +3,6 @@ package context
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )

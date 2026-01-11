@@ -1,8 +1,8 @@
 package llm
 
 import (
-	"context"
-	"silencendo/context"
+	stdcontext "context"
+	botcontext "silencendo/context"
 	"silencendo/ingestion"
 )
 
@@ -12,7 +12,7 @@ type Message struct {
 }
 
 type LLMClient interface {
-	Generate(ctx context.Context, messages []Message) (string, error)
-	Answer(ctx context.Context, question string, retrievedChunks []ingestion.Chunk, context context.ContextType) (string, error)
-	Edit(ctx context.Context, inputText string, instruction string, retrievedChunks []ingestion.Chunk, context context.ContextType) (string, error)
+	Generate(ctx stdcontext.Context, messages []Message) (string, error)
+	Answer(ctx stdcontext.Context, question string, retrievedChunks []ingestion.Chunk, context botcontext.ContextType) (string, error)
+	Edit(ctx stdcontext.Context, inputText string, instruction string, retrievedChunks []ingestion.Chunk, context botcontext.ContextType) (string, error)
 }

@@ -1,12 +1,30 @@
 {
   "chunks": [
     {
-      "chunkId": "447f55f5-3f20-4473-9f66-de2d549be9f2",
+      "chunkId": "6f407e40591b43f1a175dd2b1126c525",
       "sourceId": "2fa5d4ac-abab-4007-beaf-cbf52a8d163c",
-      "text": "Tasks for the week:\n\nAbo - hire coders\nYusuf - product promotion\nOmar - finding sponsors\nBeka aga - operating everything\nFatima - legit checking documents\nAidana - help Beka aga\nMaksat - check codes",
+      "text": "**Project Action Plan \u0026 Weekly Schedule**  \n**Week:** [Insert Week Dates]  \n**Objective:** Successfully launch \"Urban Spice,\" a new restaurant, by securing location, staff, and permits, and executing a pre-opening marketing campaign.\n\n---\n\n### **Task Assignments \u0026 Deadlines**\n\n| **Team Member** | **Primary Task**          | **Details \u0026 Deliverables**                                                                 | **Deadline**       | **Status**       |\n|-----------------|---------------------------|--------------------------------------------------------------------------------------------|--------------------|------------------|\n| **Abo**         | Hire Kitchen \u0026 Front Staff | Finalize interviews and hire 1 head chef, 3 line cooks, and 4 waitstaff.                   | Friday, EOD        | Pending          |\n| **Yusuf**       | Marketing \u0026 Brand Launch   | Create social media pages, design logo, and draft pre-opening promotional campaign.        | Wednesday, EOD     | In Progress    ",
       "metadata": {
         "position": 0,
-        "length": 198
+        "length": 1000
+      }
+    },
+    {
+      "chunkId": "f68190f1110f426ba635cb3cac763016",
+      "sourceId": "2fa5d4ac-abab-4007-beaf-cbf52a8d163c",
+      "text": "g \u0026 Brand Launch   | Create social media pages, design logo, and draft pre-opening promotional campaign.        | Wednesday, EOD     | In Progress      |\n| **Omar**        | Secure Suppliers \u0026 Vendors | Contact and negotiate contracts with 5 food suppliers and 2 equipment vendors.             | Thursday, EOD      | Not Started      |\n| **Beka Aga**    | Project Management         | Oversee all timelines, budget, and coordinate between all teams for the launch.            | Daily              | Ongoing          |\n| **Fatima**      | Licenses \u0026 Permits         | Submit all health, safety, and business licensing applications to the city.                | Tuesday, EOD       | Pending          |\n| **Aidana**      | Assist Beka Aga            | Support with vendor communications, schedule coordination, and daily task updates.         | Daily              | Ongoing          |\n| **Maksat**      | Menu \u0026 Systems Setup       | Finalize the digital menu, set up the POS system, and test payment/or",
+      "metadata": {
+        "position": 850,
+        "length": 1000
+      }
+    },
+    {
+      "chunkId": "5145fcc6164944a6a481e0f0578f0a0e",
+      "sourceId": "2fa5d4ac-abab-4007-beaf-cbf52a8d163c",
+      "text": "           | Ongoing          |\n| **Maksat**      | Menu \u0026 Systems Setup       | Finalize the digital menu, set up the POS system, and test payment/ordering technology.    | Friday, EOD        | Not Started      |\n\n---\n\n### **Notes \u0026 Additional Instructions**\n- All team members should submit a brief progress report by **5:00 PM daily**.\n- A weekly review meeting will be held every **Friday at 4:00 PM** to assess progress and adjust priorities.\n- Please update the **Status** column in real-time using the shared project management tool.\n\n---\n**Prepared by:** [Your Name]  \n**Last Updated:** [Current Date]  \n\nLet me know if you'd like this formatted into a presentation slide or a printable PDF version.",
+      "metadata": {
+        "position": 1700,
+        "length": 707
       }
     }
   ]
