@@ -319,3 +319,183 @@ func toInt(v any) (int, bool) {
 		return 0, false
 	}
 }
+
+func (a *App) subtreeUserIDs(ctx context.Context, orgID int, rootUserID int) (map[int]struct{}, error) {
+	rows, err := a.DB.Query(ctx, `
+WITH RECURSIVE sub AS (
+  SELECT id
+  FROM users
+  WHERE id = $1 AND org_id = $2
+  UNION ALL
+  SELECT u.id
+  FROM users u
+  JOIN sub s ON u.manager_id = s.id
+  WHERE u.org_id = $2
+)
+SELECT id FROM sub;
+`, rootUserID, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[int]struct{})
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (a *App) canViewUser(ctx context.Context, viewer AuthCtx, targetUserID int) (bool, error) {
+	// admin: все в своей org
+	if viewer.Role == "admin" {
+		var exists bool
+		err := a.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND org_id=$2)`, targetUserID, viewer.OrgID).Scan(&exists)
+		return exists, err
+	}
+
+	// employee: только себя
+	if viewer.Role == "employee" {
+		return viewer.UserID == targetUserID, nil
+	}
+
+	// manager: только свою ветку
+	if viewer.Role == "manager" {
+		sub, err := a.subtreeUserIDs(ctx, viewer.OrgID, viewer.UserID)
+		if err != nil {
+			return false, err
+		}
+		_, ok := sub[targetUserID]
+		return ok, nil
+	}
+
+	// неизвестная роль
+	return false, nil
+}
+
+type UserDTO struct {
+	ID        int    `json:"id"`
+	OrgID     int    `json:"org_id"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	ManagerID *int   `json:"manager_id,omitempty"`
+}
+
+func (a *App) handleUsersListVisible(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+
+	// admin: все в org
+	if auth.Role == "admin" {
+		rows, err := a.DB.Query(r.Context(), `SELECT id, org_id, email, role, manager_id FROM users WHERE org_id=$1 ORDER BY id`, auth.OrgID)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "db error")
+			return
+		}
+		defer rows.Close()
+
+		var out []UserDTO
+		for rows.Next() {
+			var u UserDTO
+			if err := rows.Scan(&u.ID, &u.OrgID, &u.Email, &u.Role, &u.ManagerID); err != nil {
+				writeErr(w, http.StatusInternalServerError, "scan error")
+				return
+			}
+			out = append(out, u)
+		}
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+
+	// employee: только себя
+	if auth.Role == "employee" {
+		var u UserDTO
+		err := a.DB.QueryRow(r.Context(), `SELECT id, org_id, email, role, manager_id FROM users WHERE id=$1 AND org_id=$2`,
+			auth.UserID, auth.OrgID,
+		).Scan(&u.ID, &u.OrgID, &u.Email, &u.Role, &u.ManagerID)
+		if err != nil {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, []UserDTO{u})
+		return
+	}
+
+	// manager: subtree
+	if auth.Role == "manager" {
+		rows, err := a.DB.Query(r.Context(), `
+WITH RECURSIVE sub AS (
+  SELECT id
+  FROM users
+  WHERE id = $1 AND org_id = $2
+  UNION ALL
+  SELECT u.id
+  FROM users u
+  JOIN sub s ON u.manager_id = s.id
+  WHERE u.org_id = $2
+)
+SELECT id, org_id, email, role, manager_id
+FROM users
+WHERE org_id=$2 AND id IN (SELECT id FROM sub)
+ORDER BY id;
+`, auth.UserID, auth.OrgID)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "db error")
+			return
+		}
+		defer rows.Close()
+
+		var out []UserDTO
+		for rows.Next() {
+			var u UserDTO
+			if err := rows.Scan(&u.ID, &u.OrgID, &u.Email, &u.Role, &u.ManagerID); err != nil {
+				writeErr(w, http.StatusInternalServerError, "scan error")
+				return
+			}
+			out = append(out, u)
+		}
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+
+	writeErr(w, http.StatusForbidden, "unknown role")
+}
+
+func (a *App) handleUsersGetByID(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	ok, err := a.canViewUser(r.Context(), *auth, id)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	if !ok {
+		writeErr(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var u UserDTO
+	err = a.DB.QueryRow(r.Context(),
+		`SELECT id, org_id, email, role, manager_id FROM users WHERE id=$1 AND org_id=$2`,
+		id, auth.OrgID,
+	).Scan(&u.ID, &u.OrgID, &u.Email, &u.Role, &u.ManagerID)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, u)
+}
