@@ -1,0 +1,17 @@
+
+# env
+backend/.env
+.env
+
+# binaries
+*.exe
+*.out
+*.bin
+
+# OS
+.DS_Store
+
+
+# env
+backend/.env
+.env
