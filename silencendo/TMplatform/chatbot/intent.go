@@ -67,7 +67,7 @@ func DetectIntent(message string) IntentMatch {
 	}
 
 	// Add stages/tasks.
-	if strings.Contains(lower, "create a plan") || strings.Contains(lower, "create plan") || strings.Contains(lower, "make a plan") || strings.Contains(lower, "сделай план") || strings.Contains(lower, "создай план") {
+	if strings.Contains(lower, "create a plan") || strings.Contains(lower, "create plan") || strings.Contains(lower, "make a plan") || strings.Contains(lower, "step by step plan") || strings.Contains(lower, "сделай план") || strings.Contains(lower, "создай план") {
 		return IntentMatch{Intent: IntentAddStagesAndTasks, ProjectTitle: extractProjectHint(lower), Members: extractPlanMembers(msg), Confidence: 0.7}
 	}
 
@@ -79,10 +79,13 @@ func DetectIntent(message string) IntentMatch {
 		return match
 	}
 
-	// Assignment.
+	// Assignment: if structured, assign; otherwise treat as planning for active project.
 	if strings.Contains(lower, "assign") || strings.Contains(lower, "responsible") || strings.Contains(lower, "назначь") {
 		entityType, assignee, entityName := parseAssign(lower)
-		return IntentMatch{Intent: IntentAssignResponsible, EntityType: entityType, EntityName: entityName, AssigneeName: assignee, Confidence: 0.65}
+		if entityType != "" && assignee != "" && entityName != "" {
+			return IntentMatch{Intent: IntentAssignResponsible, EntityType: entityType, EntityName: entityName, AssigneeName: assignee, Confidence: 0.65}
+		}
+		return IntentMatch{Intent: IntentAddStagesAndTasks, ProjectTitle: extractProjectHint(lower), Members: extractPlanMembers(msg), Confidence: 0.6}
 	}
 
 	return IntentMatch{Intent: IntentUnknown, Confidence: 0.0}
@@ -178,7 +181,11 @@ func isProjectListQuery(lower string) bool {
 }
 
 func isProjectQuestion(lower string) bool {
-	keywords := []string{"show project", "project details", "what tasks", "list stages", "members of project", "какие задачи", "этапы", "участники проекта", "покажи проект", "что в проекте", "какой статус проекта"}
+	keywords := []string{
+		"show project", "project details", "what tasks", "list stages", "members of project",
+		"какие задачи", "этапы", "участники проекта", "покажи проект", "что в проекте", "какой статус проекта",
+		"what content do we have", "content in this project", "project content", "content of this project", "what do we have in this project", "show the content", "what is the content", "content of",
+	}
 	for _, kw := range keywords {
 		if strings.Contains(lower, kw) {
 			return true
@@ -213,9 +220,22 @@ func extractPlanMembers(original string) []string {
 	if stopIdx != -1 {
 		segment = segment[:stopIdx]
 	}
-	parts := strings.FieldsFunc(segment, func(r rune) bool {
-		return r == ',' || r == ';' || r == 'и' || r == '|' || r == '+' || r == '&'
+
+	cleaned := strings.ReplaceAll(segment, " and ", ",")
+	cleaned = strings.ReplaceAll(cleaned, " & ", ",")
+	cleaned = strings.ReplaceAll(cleaned, " + ", ",")
+	cleaned = strings.ReplaceAll(cleaned, " и ", ",")
+
+	parts := strings.FieldsFunc(cleaned, func(r rune) bool {
+		return r == ',' || r == ';' || r == '|' || r == '\n'
 	})
+	if len(parts) == 1 {
+		// Fallback: split on whitespace when multiple tokens are packed without delimiters (e.g., "Omar Yussuf Fatima").
+		words := strings.Fields(parts[0])
+		if len(words) > 1 {
+			parts = words
+		}
+	}
 	var members []string
 	for _, p := range parts {
 		name := strings.TrimSpace(strings.TrimPrefix(p, "and"))

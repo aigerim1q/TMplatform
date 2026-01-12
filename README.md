@@ -23,12 +23,12 @@ Optimized Go-only implementation of the Knowledge + Planning Bot with RAG (Retri
 2. **Run the application with a single command**:
    After first setup, simply use:
    ```bash
-   run-silencendo
+   ./run
    ```
    
-   Or alternatively:
+   Or alternatively (legacy):
    ```bash
-   ./run_silencendo.sh
+   run-silencendo
    ```
 
 ## Manual Setup

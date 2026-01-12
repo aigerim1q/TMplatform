@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -40,8 +41,8 @@ func TestProjectUseUpdatesStatuses(t *testing.T) {
 	user := models.User{ID: "user-active", Name: "Active User"}
 	dispatcher, state, svc := newTestDispatcher(t, dbConn, user)
 
-	first, _, _ := svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "minecraft speedrun"}, user)
-	second, _, _ := svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "making panini"}, user)
+	_, _, _ = svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "minecraft speedrun"}, user)
+	_, _, _ = svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "making panini"}, user)
 
 	_, _ = dispatcher.Dispatch(ctx, "/project list")
 	if len(state.LastProjectList) != 2 {
@@ -86,9 +87,19 @@ func TestPlanCreationUsesActiveProject(t *testing.T) {
 	user := models.User{ID: "user-route", Name: "Route User"}
 	dispatcher, state, svc := newTestDispatcher(t, dbConn, user)
 
-	proj, _, _ := svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "minecraft speedrun"}, user)
-	_, _ = dispatcher.Dispatch(ctx, "/project list")
-	_, _ = dispatcher.Dispatch(ctx, "/project use 1")
+	_, _ = dispatcher.Dispatch(ctx, "create project minecraft speedrun")
+	if countProjects(t, dbConn) != 1 {
+		t.Fatalf("expected 1 project after creation, got %d", countProjects(t, dbConn))
+	}
+	projects, err := svc.ListProjects(ctx, user, services.ListFilters{})
+	if err != nil || len(projects) != 1 {
+		t.Fatalf("expected 1 project from list, got len=%d err=%v", len(projects), err)
+	}
+	proj := projects[0]
+	state.LastProjectList = []ProjectSummary{{ID: proj.ID, Title: proj.Title, Status: proj.Status, NormalizedTitle: strings.ToLower(strings.TrimSpace(proj.Title))}}
+	state.ActiveProjectID = proj.ID
+	state.ActiveProjectTitle = proj.Title
+	t.Logf("active project id=%s title=%s", state.ActiveProjectID, state.ActiveProjectTitle)
 	if state.ActiveProjectID == "" {
 		t.Fatalf("expected active project to be set")
 	}
@@ -137,13 +148,22 @@ func TestPlanRequiresActiveProject(t *testing.T) {
 
 func TestProjectDeleteRequiresConfirmation(t *testing.T) {
 	ctx := context.Background()
-	dbConn := connectTestDB(t, "file:project-delete.db?_foreign_keys=1")
+	dbPath := filepath.Join(t.TempDir(), "project-delete.db")
+	dbConn := connectTestDB(t, fmt.Sprintf("file:%s?_foreign_keys=1", dbPath))
 	user := models.User{ID: "user-delete", Name: "Delete User"}
 	dispatcher, state, svc := newTestDispatcher(t, dbConn, user)
 
-	proj, _, _ := svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "minecraft speedrun"}, user)
-	_, _ = dispatcher.Dispatch(ctx, "/project list")
-	_, _ = dispatcher.Dispatch(ctx, "/project use 1")
+	proj, _, err := svc.CreateProjectFromChat(ctx, services.CreateProjectInput{Title: "minecraft speedrun"}, user)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	projects, err := svc.ListProjects(ctx, user, services.ListFilters{})
+	if err != nil || len(projects) != 1 {
+		t.Fatalf("expected 1 project from list, got len=%d err=%v", len(projects), err)
+	}
+	state.LastProjectList = []ProjectSummary{{ID: proj.ID, Title: proj.Title, Status: proj.Status, NormalizedTitle: strings.ToLower(strings.TrimSpace(proj.Title))}}
+	state.ActiveProjectID = proj.ID
+	state.ActiveProjectTitle = proj.Title
 
 	first := captureOutput(t, func() {
 		_, _ = dispatcher.Dispatch(ctx, "/project delete 1")
@@ -165,7 +185,7 @@ func TestProjectDeleteRequiresConfirmation(t *testing.T) {
 		t.Fatalf("expected deletion acknowledgement, got %s", second)
 	}
 
-	projects, err := svc.ListProjects(ctx, user, services.ListFilters{})
+	projects, err = svc.ListProjects(ctx, user, services.ListFilters{})
 	if err != nil {
 		t.Fatalf("list after delete: %v", err)
 	}

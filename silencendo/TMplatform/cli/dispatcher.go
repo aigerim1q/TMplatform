@@ -53,20 +53,17 @@ func (d *Dispatcher) Dispatch(ctx context.Context, input string) (bool, error) {
 		return d.handleSlashCommand(ctx, trimmed)
 	}
 
-	if isProjectScopedInput(lower) {
+	if (d.state == nil || strings.TrimSpace(d.state.ActiveProjectID) == "") && isProjectScopedInput(lower) {
 		match := chatbot.DetectIntent(trimmed)
 		if match.Intent == chatbot.IntentCreateProject || match.Intent == chatbot.IntentListProjects {
-			return d.dispatchWithForced(ctx, trimmed, IntentProject)
-		}
-		if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) != "" {
-			return d.dispatchWithForced(ctx, trimmed, IntentProject)
+			return d.dispatchWithForced(ctx, trimmed, IntentProject, nil)
 		}
 		fmt.Println(noActiveProjectMessage())
 		return false, nil
 	}
 
 	resolved := d.resolvedActiveProject()
-	route := d.router.Route(trimmed, resolved)
+	route := d.router.Route(ctx, trimmed, resolved)
 	switch route.Type {
 	case IntentAmbiguous:
 		if d.state != nil {
@@ -75,10 +72,14 @@ func (d *Dispatcher) Dispatch(ctx context.Context, input string) (bool, error) {
 		fmt.Println("Do you want to:\n1) Create a new PROJECT in the system\n2) Edit the CURRENT document?")
 		return false, nil
 	case IntentProject:
-		return d.dispatchWithForced(ctx, trimmed, IntentProject)
+		return d.dispatchWithForced(ctx, trimmed, IntentProject, route.ProjectMatch)
 	case IntentDocument:
-		return d.dispatchWithForced(ctx, trimmed, IntentDocument)
+		return d.dispatchWithForced(ctx, trimmed, IntentDocument, nil)
 	case IntentKnowledge:
+		if route.LLMFailed {
+			fmt.Println("DeepSeek couldn't understand that request. Please rephrase.")
+			return false, nil
+		}
 		return false, d.documentHandler.handleQuestion(trimmed)
 	default:
 		return false, nil
@@ -98,13 +99,13 @@ func (d *Dispatcher) handlePending(ctx context.Context, input string) (bool, err
 	if projectChoices[lower] {
 		original := d.state.Pending.OriginalInput
 		d.state.Pending = nil
-		return d.dispatchWithForced(ctx, original, IntentProject)
+		return d.dispatchWithForced(ctx, original, IntentProject, nil)
 	}
 
 	if documentChoices[lower] {
 		original := d.state.Pending.OriginalInput
 		d.state.Pending = nil
-		return d.dispatchWithForced(ctx, original, IntentDocument)
+		return d.dispatchWithForced(ctx, original, IntentDocument, nil)
 	}
 
 	if cancelChoices[lower] {
@@ -147,8 +148,7 @@ func (d *Dispatcher) handlePendingDeletion(ctx context.Context, input string) (b
 			return true, err
 		}
 		if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) == projID {
-			d.state.ActiveProjectID = ""
-			d.state.ActiveProjectTitle = ""
+			d.state.ClearActiveProject()
 		}
 		fmt.Printf("🗑️ Project '%s' deleted.\n", deleted.Title)
 		return true, nil
@@ -158,14 +158,21 @@ func (d *Dispatcher) handlePendingDeletion(ctx context.Context, input string) (b
 	return true, nil
 }
 
-func (d *Dispatcher) dispatchWithForced(ctx context.Context, input string, forced IntentType) (bool, error) {
+func (d *Dispatcher) dispatchWithForced(ctx context.Context, input string, forced IntentType, projectMatch *chatbot.IntentMatch) (bool, error) {
 	switch forced {
 	case IntentProject:
 		if d.projectHandler != nil {
 			if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) != "" {
 				ctx = chatbot.WithResolvedProject(ctx, strings.TrimSpace(d.state.ActiveProjectID), strings.TrimSpace(d.state.ActiveProjectTitle))
 			}
-			handled, reply, err := d.projectHandler.Handle(ctx, input)
+			var handled bool
+			var reply string
+			var err error
+			if projectMatch != nil {
+				handled, reply, err = d.projectHandler.HandleWithMatch(ctx, *projectMatch)
+			} else {
+				handled, reply, err = d.projectHandler.Handle(ctx, input)
+			}
 			if handled {
 				if err != nil {
 					fmt.Printf("Error: %v\n", err)
@@ -176,6 +183,22 @@ func (d *Dispatcher) dispatchWithForced(ctx context.Context, input string, force
 			}
 			if err != nil {
 				return false, err
+			}
+
+			// Fallback: with an active project, show its details when free-form text isn't parsed.
+			if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) != "" {
+				fallbackHandled, fallbackReply, fallbackErr := d.projectHandler.Handle(ctx, "show project")
+				if fallbackHandled {
+					if fallbackErr != nil {
+						fmt.Printf("Error: %v\n", fallbackErr)
+					} else if strings.TrimSpace(fallbackReply) != "" {
+						fmt.Println(fallbackReply)
+					}
+					return false, fallbackErr
+				}
+				if fallbackErr != nil {
+					return false, fallbackErr
+				}
 			}
 		}
 		// If not handled, avoid falling back to LLM for project intents; give direct guidance.
@@ -239,6 +262,9 @@ func (d *Dispatcher) handleProjectSlashCommand(ctx context.Context, args []strin
 	case "list", "список", "list_projects", "listprojects", "мои", "мои_проекты", "проекты", "projects":
 		verbose := containsFlag(args[1:], "--verbose")
 		return d.printProjectList(ctx, verbose)
+	case "help", "h", "?":
+		d.printProjectHelp()
+		return nil
 	case "use", "set", "select", "выбрать", "использовать", "выбор":
 		if len(args) < 2 {
 			fmt.Println("Usage: /project use <name|id|number>")
@@ -255,8 +281,7 @@ func (d *Dispatcher) handleProjectSlashCommand(ctx context.Context, args []strin
 		return nil
 	case "clear", "сброс", "очистить":
 		if d.state != nil {
-			d.state.ActiveProjectID = ""
-			d.state.ActiveProjectTitle = ""
+			d.state.ClearActiveProject()
 		}
 		fmt.Println("Active project cleared.")
 		return nil
@@ -276,9 +301,19 @@ func (d *Dispatcher) handleProjectSlashCommand(ctx context.Context, args []strin
 		target := strings.Join(args[1:], " ")
 		return d.requestProjectDeletion(ctx, target)
 	default:
-		fmt.Println("Unknown /project subcommand. Try: list, use, current, clear, set-status, delete.")
+		fmt.Println("Unknown /project subcommand. Try: help, list, use, current, clear, set-status, delete.")
 		return nil
 	}
+}
+
+func (d *Dispatcher) printProjectHelp() {
+	fmt.Println("/project help - Show this help")
+	fmt.Println("/project list [--verbose] - List your projects")
+	fmt.Println("/project use <name|id|number> - Set active project")
+	fmt.Println("/project current - Show active project")
+	fmt.Println("/project clear - Clear active project")
+	fmt.Println("/project set-status <active|inactive> <name|id|number> - Update status")
+	fmt.Println("/project delete <name|id|number> - Soft delete a project (confirm required)")
 }
 
 func (d *Dispatcher) printProjectList(ctx context.Context, verbose bool) error {
@@ -328,7 +363,25 @@ func (d *Dispatcher) selectActiveProject(ctx context.Context, target string) err
 		return err
 	}
 	if project.ID == "" {
-		return nil
+		activeID := ""
+		activeTitle := ""
+		if d.state != nil {
+			activeID = strings.TrimSpace(d.state.ActiveProjectID)
+			activeTitle = strings.TrimSpace(d.state.ActiveProjectTitle)
+		}
+
+		if activeID != "" {
+			project = models.Project{ID: activeID, Title: activeTitle}
+		} else if d.projectHandler != nil && d.projectHandler.Projects != nil {
+			projects, err := d.projectHandler.Projects.ListProjects(ctx, d.projectHandler.User, services.ListFilters{})
+			if err == nil && len(projects) == 1 {
+				project = projects[0]
+			}
+		}
+
+		if project.ID == "" {
+			return nil
+		}
 	}
 
 	previousID := ""
@@ -342,8 +395,7 @@ func (d *Dispatcher) selectActiveProject(ctx context.Context, target string) err
 	}
 
 	if d.state != nil {
-		d.state.ActiveProjectID = activated.ID
-		d.state.ActiveProjectTitle = activated.Title
+		d.state.SetActiveProject(activated.ID, activated.Title)
 	}
 
 	msg := fmt.Sprintf("✅ Current project set to: %s", activated.Title)
@@ -385,8 +437,7 @@ func (d *Dispatcher) updateProjectStatus(ctx context.Context, status, target str
 			return err
 		}
 		if d.state != nil {
-			d.state.ActiveProjectID = updated.ID
-			d.state.ActiveProjectTitle = updated.Title
+			d.state.SetActiveProject(updated.ID, updated.Title)
 		}
 		msg := fmt.Sprintf("Project %s status set to active and selected as current.", updated.Title)
 		if deactivated != nil {
@@ -402,8 +453,7 @@ func (d *Dispatcher) updateProjectStatus(ctx context.Context, status, target str
 	}
 
 	if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) == updated.ID {
-		d.state.ActiveProjectID = ""
-		d.state.ActiveProjectTitle = ""
+		d.state.ClearActiveProject()
 		fmt.Printf("Project %s marked inactive and current selection cleared.\n", updated.Title)
 		return nil
 	}
@@ -413,6 +463,15 @@ func (d *Dispatcher) updateProjectStatus(ctx context.Context, status, target str
 }
 
 func (d *Dispatcher) requestProjectDeletion(ctx context.Context, target string) error {
+	if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) != "" {
+		project := models.Project{ID: strings.TrimSpace(d.state.ActiveProjectID), Title: strings.TrimSpace(d.state.ActiveProjectTitle)}
+		if d.state != nil {
+			d.state.PendingDeletion = &PendingDeletion{ProjectID: project.ID, ProjectTitle: project.Title}
+		}
+		fmt.Printf("⚠️ Delete project '%s'? Reply 'delete %s' to confirm or 'cancel'.\n", project.Title, project.Title)
+		return nil
+	}
+
 	project, err := d.resolveProjectSelection(ctx, target)
 	if err != nil {
 		return err
@@ -447,20 +506,27 @@ func (d *Dispatcher) resolveProjectSelection(ctx context.Context, target string)
 
 	// 1) numeric index against cached list
 	if idx, errConv := strconv.Atoi(normalizedTarget); errConv == nil {
-		if d.state == nil || len(d.state.LastProjectList) == 0 {
-			fmt.Println("No cached project list. Run /project list first.")
-			return models.Project{}, nil
-		}
-		if idx <= 0 || idx > len(d.state.LastProjectList) {
+		if idx <= 0 {
 			fmt.Println("Invalid project number. Use /project list and pick a listed number.")
 			return models.Project{}, nil
 		}
-		selected := d.state.LastProjectList[idx-1]
-		for _, p := range projects {
-			if p.ID == selected.ID {
-				return p, nil
-			}
+		if idx <= len(projects) {
+			return projects[idx-1], nil
 		}
+
+		if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) != "" {
+			activeID := strings.TrimSpace(d.state.ActiveProjectID)
+			activeTitle := strings.TrimSpace(d.state.ActiveProjectTitle)
+			for _, p := range projects {
+				if p.ID == activeID {
+					return p, nil
+				}
+			}
+			return models.Project{ID: activeID, Title: activeTitle}, nil
+		}
+
+		fmt.Println("Invalid project number. Use /project list and pick a listed number.")
+		return models.Project{}, nil
 	}
 
 	// 2) exact normalized title

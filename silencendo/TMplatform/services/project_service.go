@@ -700,13 +700,93 @@ func (s *ProjectService) CreateRuleBasedPlan(ctx context.Context, projectID stri
 		members = append(members, MemberPlan{Name: name})
 	}
 
-	defaultPlan := []StagePlan{
-		{Title: "Planning", Order: 1, Tasks: []TaskPlan{{Title: "Clarify scope"}, {Title: "Define milestones"}}},
-		{Title: "Execution", Order: 2, Tasks: []TaskPlan{{Title: "Assign responsibilities"}, {Title: "Start core work"}}},
-		{Title: "Review", Order: 3, Tasks: []TaskPlan{{Title: "Review progress"}, {Title: "Plan next steps"}}},
+	projectTitle, err := s.fetchProjectTitleForUser(ctx, projectID, user)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	return s.AddMembersAndOptionalPlan(ctx, projectID, members, defaultPlan, user)
+	plan := buildPlanForProject(projectTitle, memberNames)
+	return s.AddMembersAndOptionalPlan(ctx, projectID, members, plan, user)
+}
+
+func (s *ProjectService) fetchProjectTitleForUser(ctx context.Context, projectID string, user models.User) (string, error) {
+	var title string
+
+	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		actor, err := s.ensureUser(ctx, tx, user)
+		if err != nil {
+			return err
+		}
+
+		if err := s.membershipsCheck(ctx, tx, projectID, actor.ID); err != nil {
+			return err
+		}
+
+		project, err := s.projects.GetByID(ctx, tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		title = project.Title
+		return nil
+	})
+
+	return title, err
+}
+
+func buildPlanForProject(projectTitle string, memberNames []string) []StagePlan {
+	picker := makeNamePicker(memberNames)
+	if isMinecraftProject(projectTitle) {
+		return buildMinecraftPlan(picker)
+	}
+
+	return []StagePlan{
+		{Title: "Planning", Order: 1, ResponsibleName: picker(0), Tasks: []TaskPlan{{Title: "Clarify scope", AssigneeName: picker(0)}, {Title: "Define milestones", AssigneeName: picker(1)}}},
+		{Title: "Execution", Order: 2, ResponsibleName: picker(1), Tasks: []TaskPlan{{Title: "Assign responsibilities", AssigneeName: picker(0)}, {Title: "Start core work", AssigneeName: picker(1)}}},
+		{Title: "Review", Order: 3, ResponsibleName: picker(0), Tasks: []TaskPlan{{Title: "Review progress", AssigneeName: picker(0)}, {Title: "Plan next steps", AssigneeName: picker(1)}}},
+	}
+}
+
+func buildMinecraftPlan(picker func(int) *string) []StagePlan {
+	return []StagePlan{
+		{Title: "Preparation", Order: 1, ResponsibleName: picker(0), Tasks: []TaskPlan{
+			{Title: "Gather food, beds, and shields for the run", AssigneeName: picker(0)},
+			{Title: "Craft iron gear (bucket, armor, tools, flint & steel)", AssigneeName: picker(1)},
+			{Title: "Collect boats and blocks for fast overworld travel", AssigneeName: picker(0)},
+		}},
+		{Title: "Nether", Order: 2, ResponsibleName: picker(1), Tasks: []TaskPlan{
+			{Title: "Find lava pool and enter the Nether quickly", AssigneeName: picker(1)},
+			{Title: "Locate fortress and secure 12 blaze rods", AssigneeName: picker(0)},
+			{Title: "Trade with piglins for 12-16 ender pearls", AssigneeName: picker(1)},
+		}},
+		{Title: "Endgame", Order: 3, ResponsibleName: picker(0), Tasks: []TaskPlan{
+			{Title: "Craft eyes of ender and locate the stronghold", AssigneeName: picker(0)},
+			{Title: "Set spawn, place beds, and prep water buckets in the End", AssigneeName: picker(1)},
+			{Title: "Defeat the Ender Dragon with bed/axe strategy", AssigneeName: picker(0)},
+		}},
+	}
+}
+
+func isMinecraftProject(projectTitle string) bool {
+	lower := strings.ToLower(strings.TrimSpace(projectTitle))
+	return strings.Contains(lower, "minecraft") || strings.Contains(lower, "nether") || strings.Contains(lower, "ender") || strings.Contains(lower, "speedrun")
+}
+
+func makeNamePicker(names []string) func(int) *string {
+	if len(names) == 0 {
+		return func(int) *string { return nil }
+	}
+	return func(idx int) *string {
+		if len(names) == 0 {
+			return nil
+		}
+		name := strings.TrimSpace(names[idx%len(names)])
+		if name == "" {
+			return nil
+		}
+		copy := name
+		return &copy
+	}
 }
 
 func (s *ProjectService) GetProjectDetails(ctx context.Context, projectID string, user models.User) (models.ProjectDetails, error) {

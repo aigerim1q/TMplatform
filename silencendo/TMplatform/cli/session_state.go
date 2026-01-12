@@ -1,6 +1,12 @@
 package cli
 
-import "time"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
 
 // ConfirmationKind enumerates pending confirmation types.
 type ConfirmationKind string
@@ -32,8 +38,12 @@ type SessionState struct {
 }
 
 func NewSessionState() *SessionState {
-	return &SessionState{LastProjectList: []ProjectSummary{}}
+	state := &SessionState{LastProjectList: []ProjectSummary{}}
+	state.loadFromDisk()
+	return state
 }
+
+const sessionStateFile = ".bot/session_state.json"
 
 // ProjectSummary caches the last shown list for numeric selection.
 type ProjectSummary struct {
@@ -41,4 +51,62 @@ type ProjectSummary struct {
 	Title           string
 	Status          string
 	NormalizedTitle string
+}
+
+func (s *SessionState) SetActiveProject(id, title string) {
+	if s == nil {
+		return
+	}
+	s.ActiveProjectID = strings.TrimSpace(id)
+	s.ActiveProjectTitle = strings.TrimSpace(title)
+	s.persist()
+}
+
+func (s *SessionState) ClearActiveProject() {
+	if s == nil {
+		return
+	}
+	s.ActiveProjectID = ""
+	s.ActiveProjectTitle = ""
+	s.persist()
+}
+
+func (s *SessionState) loadFromDisk() {
+	if s == nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(sessionStateFile), 0o755); err != nil {
+		return
+	}
+	data, err := os.ReadFile(sessionStateFile)
+	if err != nil {
+		return
+	}
+	var disk struct {
+		ActiveProjectID    string `json:"active_project_id"`
+		ActiveProjectTitle string `json:"active_project_title"`
+	}
+	if err := json.Unmarshal(data, &disk); err != nil {
+		return
+	}
+	s.ActiveProjectID = strings.TrimSpace(disk.ActiveProjectID)
+	s.ActiveProjectTitle = strings.TrimSpace(disk.ActiveProjectTitle)
+}
+
+func (s *SessionState) persist() {
+	if s == nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(sessionStateFile), 0o755); err != nil {
+		return
+	}
+	disk := struct {
+		ActiveProjectID    string `json:"active_project_id"`
+		ActiveProjectTitle string `json:"active_project_title"`
+	}{ActiveProjectID: strings.TrimSpace(s.ActiveProjectID), ActiveProjectTitle: strings.TrimSpace(s.ActiveProjectTitle)}
+	data, err := json.MarshalIndent(disk, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(sessionStateFile, data, 0o644)
 }

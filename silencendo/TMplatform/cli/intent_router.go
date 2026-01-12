@@ -50,6 +50,7 @@ type IntentResult struct {
 	Confidence   float64
 	ProjectMatch *chatbot.IntentMatch
 	Resolved     *ResolvedProject
+	LLMFailed    bool
 }
 
 type ResolvedProject struct {
@@ -62,27 +63,38 @@ func (r *IntentRouter) Route(ctx context.Context, input string, resolved *Resolv
 	normalized := strings.TrimSpace(input)
 	lower := strings.ToLower(normalized)
 
-	if resolved != nil && strings.TrimSpace(resolved.ID) != "" {
-		match := chatbot.DetectIntent(normalized)
-		if strings.TrimSpace(match.ProjectTitle) == "" {
-			match.ProjectTitle = resolved.Title
+	if r.useLLM && r.llmClient != nil {
+		if classified := r.classifyWithDeepSeek(ctx, normalized, resolved); classified != nil {
+			switch classified.Domain {
+			case "project":
+				match := mapClassifiedProjectIntent(normalized, resolved, classified.Intent)
+				if match.Intent != chatbot.IntentUnknown {
+					return IntentResult{Type: IntentProject, Confidence: classified.Confidence, ProjectMatch: &match, Resolved: resolved}
+				}
+			case "docs":
+				if classified.Intent == "docs_command" {
+					return IntentResult{Type: IntentDocument, Confidence: classified.Confidence}
+				}
+				if classified.Intent == "docs_qa" {
+					return IntentResult{Type: IntentKnowledge, Confidence: classified.Confidence}
+				}
+			}
 		}
-		conf := resolved.Confidence
-		if conf == 0 {
-			conf = 0.75
+
+		if resolved != nil {
+			if match, conf, err := r.classifyProjectWithDeepSeek(ctx, normalized); err == nil && match != nil {
+				match.ProjectTitle = resolved.Title
+				return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: match, Resolved: resolved}
+			}
 		}
-		return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: &match, Resolved: resolved}
+
+		return IntentResult{Type: IntentKnowledge, Confidence: 0, Resolved: resolved, LLMFailed: true}
 	}
 
-	if isProjectListQuery(lower) {
+	// No LLM available; fall back to lightweight heuristics.
+	if isProjectListQuery(lower) && (resolved == nil || strings.TrimSpace(resolved.ID) == "") {
 		match := chatbot.IntentMatch{Intent: chatbot.IntentListProjects, Confidence: 0.9}
-		return IntentResult{Type: IntentProject, Confidence: 0.9, ProjectMatch: &match}
-	}
-
-	if r.useLLM {
-		if match, conf, err := r.classifyProjectWithDeepSeek(ctx, normalized); err == nil && match != nil {
-			return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: match}
-		}
+		return IntentResult{Type: IntentProject, Confidence: 0.9, ProjectMatch: &match, Resolved: resolved}
 	}
 
 	projectMatch := chatbot.DetectIntent(normalized)
@@ -91,11 +103,10 @@ func (r *IntentRouter) Route(ctx context.Context, input string, resolved *Resolv
 		if conf == 0 {
 			conf = 0.6
 		}
-		return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: &projectMatch}
-	}
-
-	if r.sourceManager != nil && len(r.sourceManager.GetActiveSources()) > 0 && containsProjectDecisionWords(lower) {
-		return IntentResult{Type: IntentAmbiguous, Confidence: 0.55}
+		if resolved != nil && strings.TrimSpace(resolved.ID) != "" && strings.TrimSpace(projectMatch.ProjectTitle) == "" {
+			projectMatch.ProjectTitle = resolved.Title
+		}
+		return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: &projectMatch, Resolved: resolved}
 	}
 
 	intentFn := r.detectIntent
@@ -117,6 +128,12 @@ type llmIntentResponse struct {
 	Confidence    float64 `json:"confidence"`
 }
 
+type projectClassification struct {
+	Domain     string  `json:"domain"`
+	Intent     string  `json:"intent"`
+	Confidence float64 `json:"confidence"`
+}
+
 func (r *IntentRouter) classifyProjectWithDeepSeek(ctx context.Context, input string) (*chatbot.IntentMatch, float64, error) {
 	if !r.useLLM || r.llmClient == nil {
 		return nil, 0, errors.New("llm disabled")
@@ -126,7 +143,7 @@ func (r *IntentRouter) classifyProjectWithDeepSeek(ctx context.Context, input st
 	defer cancel()
 
 	messages := []llm.Message{
-		{Role: "system", Content: "You route CLI requests. Classify each message into intent_type of project|document|knowledge. If the user asks to view, show, or describe a project plan (e.g., 'show the plan'), set intent_type to project and project_intent to show_project. project_intent options: create_project, add_stages_tasks, assign_responsible, list_projects, show_project, unknown. Respond with a single JSON object and nothing else."},
+		{Role: "system", Content: "You route CLI requests. Classify each message into intent_type of project|document|knowledge. If the user asks to view, show, or describe a project plan or project content (e.g., 'show the plan', 'show the content', 'what is the content'), set intent_type to project and project_intent to show_project. project_intent options: create_project, add_stages_tasks, assign_responsible, list_projects, show_project, unknown. Respond with a single JSON object and nothing else."},
 		{Role: "user", Content: input},
 	}
 
@@ -199,6 +216,76 @@ func mapProjectIntent(intent string) string {
 	default:
 		return chatbot.IntentUnknown
 	}
+}
+
+func (r *IntentRouter) classifyWithDeepSeek(ctx context.Context, input string, resolved *ResolvedProject) *projectClassification {
+	if !r.useLLM || r.llmClient == nil {
+		return nil
+	}
+
+	classifyCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	messages := []llm.Message{
+		{Role: "system", Content: "Classify the user message. Respond with JSON only: {\"domain\": \"project|docs|unknown\", \"intent\": one of [project_show_content, project_show_plan, project_create_plan, project_list_tasks, project_list_stages, project_list_members, project_count_done_tasks, docs_command, docs_qa, unknown], \"confidence\": 0-1}. If the user asks about project content (e.g., 'what is the content', 'show the content'), choose intent=project_show_content. Do not guess project names. If no active project is mentioned, still classify intent but NEVER invent a project. Return ONLY JSON."},
+		{Role: "user", Content: input},
+	}
+
+	raw, err := r.llmClient.Generate(classifyCtx, messages)
+	if err != nil {
+		return nil
+	}
+
+	classified, err := decodeProjectClassification(raw)
+	if err != nil {
+		return nil
+	}
+
+	classified.Confidence = clampConfidence(classified.Confidence)
+	if classified.Confidence < 0.6 {
+		return nil
+	}
+
+	return classified
+}
+
+func decodeProjectClassification(raw string) (*projectClassification, error) {
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start == -1 || end <= start {
+		return nil, errors.New("no json payload found")
+	}
+
+	segment := raw[start : end+1]
+	var resp projectClassification
+	if err := json.Unmarshal([]byte(segment), &resp); err != nil {
+		return nil, err
+	}
+
+	resp.Domain = strings.TrimSpace(strings.ToLower(resp.Domain))
+	resp.Intent = strings.TrimSpace(strings.ToLower(resp.Intent))
+	resp.Confidence = clampConfidence(resp.Confidence)
+	if resp.Domain == "" || resp.Intent == "" {
+		return nil, errors.New("missing fields")
+	}
+
+	return &resp, nil
+}
+
+func mapClassifiedProjectIntent(input string, resolved *ResolvedProject, intent string) chatbot.IntentMatch {
+	match := chatbot.IntentMatch{Intent: chatbot.IntentUnknown, Confidence: 0.75}
+	switch intent {
+	case "project_create_plan":
+		match.Intent = chatbot.IntentAddStagesAndTasks
+	case "project_show_content", "project_show_plan", "project_list_tasks", "project_list_stages", "project_list_members", "project_count_done_tasks":
+		match.Intent = chatbot.IntentShowProject
+	}
+
+	if resolved != nil && strings.TrimSpace(resolved.Title) != "" {
+		match.ProjectTitle = resolved.Title
+	}
+
+	return match
 }
 
 func clampConfidence(value float64) float64 {

@@ -65,3 +65,37 @@ func TestDetectIntentShowPlan(t *testing.T) {
 		t.Fatalf("expected show project intent for plan view")
 	}
 }
+
+func TestDetectIntentShowContent(t *testing.T) {
+	match := DetectIntent("show the content")
+	if match.Intent != IntentShowProject {
+		t.Fatalf("expected show project intent for content")
+	}
+}
+
+func TestDetectIntentWhatIsContent(t *testing.T) {
+	match := DetectIntent("what is the content")
+	if match.Intent != IntentShowProject {
+		t.Fatalf("expected show project intent for 'what is the content'")
+	}
+}
+
+func TestExtractPlanMembersSplitsAnd(t *testing.T) {
+	members := extractPlanMembers("create plan for Omar and Yussuf to beat minecraft")
+	if len(members) != 2 {
+		t.Fatalf("expected two members, got %d", len(members))
+	}
+	if members[0] != "Omar" || members[1] != "Yussuf" {
+		t.Fatalf("unexpected members parsed: %#v", members)
+	}
+}
+
+func TestExtractPlanMembersWhitespaceSeparated(t *testing.T) {
+	members := extractPlanMembers("create plan for Omar Yussuf Fatima to beat minecraft")
+	if len(members) != 3 {
+		t.Fatalf("expected three members, got %d", len(members))
+	}
+	if members[0] != "Omar" || members[1] != "Yussuf" || members[2] != "Fatima" {
+		t.Fatalf("unexpected members parsed: %#v", members)
+	}
+}

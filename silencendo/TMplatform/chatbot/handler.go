@@ -50,6 +50,11 @@ func NewHandler(projects *services.ProjectService, user models.User) *Handler {
 // Handle attempts to satisfy chatbot intents. handled indicates whether the message was consumed by this layer.
 func (h *Handler) Handle(ctx context.Context, message string) (handled bool, reply string, err error) {
 	match := DetectIntent(message)
+	return h.HandleWithMatch(ctx, match)
+}
+
+// HandleWithMatch routes using a pre-classified intent match (e.g., from DeepSeek classifier).
+func (h *Handler) HandleWithMatch(ctx context.Context, match IntentMatch) (handled bool, reply string, err error) {
 	resolvedID, resolvedTitle, hasResolved := resolvedProjectFromCtx(ctx)
 	if hasResolved && strings.TrimSpace(match.ProjectTitle) == "" {
 		match.ProjectTitle = resolvedTitle

@@ -259,6 +259,179 @@ func TestProjectListQueriesBypassLLM(t *testing.T) {
 	}
 }
 
+func TestDeepSeekClassificationCreatesPlanWithActiveProject(t *testing.T) {
+	restore := useTempWorkdir(t)
+	defer restore()
+
+	dbConn := connectTestDB(t, "file:project-plan-deepseek.db?_foreign_keys=1")
+	actor := models.User{ID: "user-plan", Name: "Planner"}
+	dispatcher, state, svc := newTestDispatcher(t, dbConn, actor)
+
+	project, _, err := svc.CreateProjectFromChat(context.Background(), services.CreateProjectInput{Title: "minecraft speedrun"}, actor)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	state.ActiveProjectID = project.ID
+	state.ActiveProjectTitle = project.Title
+
+	classifier := &fakeClassifierLLM{resp: `{"domain":"project","intent":"project_create_plan","confidence":0.9}`}
+	dispatcher.router.llmClient = classifier
+	dispatcher.router.useLLM = true
+
+	output := captureOutput(t, func() {
+		_, _ = dispatcher.Dispatch(context.Background(), "create a step-by-step plan for 2 players Yussuf and Omar to beat minecraft")
+	})
+
+	if !strings.Contains(strings.ToLower(output), "plan created") {
+		t.Fatalf("expected plan creation, got: %s", output)
+	}
+	if classifier.answerCalls > 0 || classifier.editCalls > 0 {
+		t.Fatalf("execution should not call Answer/Edit, got answer=%d edit=%d", classifier.answerCalls, classifier.editCalls)
+	}
+}
+
+func TestDeepSeekClassificationShowsPlanWithActiveProject(t *testing.T) {
+	restore := useTempWorkdir(t)
+	defer restore()
+
+	dbConn := connectTestDB(t, "file:project-plan-show.db?_foreign_keys=1")
+	actor := models.User{ID: "user-plan-show", Name: "Planner"}
+	dispatcher, state, svc := newTestDispatcher(t, dbConn, actor)
+
+	project, _, err := svc.CreateProjectFromChat(context.Background(), services.CreateProjectInput{Title: "minecraft speedrun"}, actor)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	state.ActiveProjectID = project.ID
+	state.ActiveProjectTitle = project.Title
+
+	// Seed a plan so show_plan has content.
+	_, _, _, err = svc.CreateRuleBasedPlan(context.Background(), project.ID, nil, actor)
+	if err != nil {
+		t.Fatalf("seed plan: %v", err)
+	}
+
+	classifier := &fakeClassifierLLM{resp: `{"domain":"project","intent":"project_show_plan","confidence":0.92}`}
+	dispatcher.router.llmClient = classifier
+	dispatcher.router.useLLM = true
+
+	output := captureOutput(t, func() {
+		_, _ = dispatcher.Dispatch(context.Background(), "show me the content of this project")
+	})
+
+	if !strings.Contains(output, "Tasks:") {
+		t.Fatalf("expected tasks to be shown, got: %s", output)
+	}
+}
+
+func TestCreatePlanWithoutActiveProjectRequestsSelection(t *testing.T) {
+	restore := useTempWorkdir(t)
+	defer restore()
+
+	dbConn := connectTestDB(t, "file:project-plan-no-active.db?_foreign_keys=1")
+	actor := models.User{ID: "user-no-active", Name: "NoActive"}
+	dispatcher, _, _ := newTestDispatcher(t, dbConn, actor)
+
+	classifier := &fakeClassifierLLM{resp: `{"domain":"project","intent":"project_create_plan","confidence":0.88}`}
+	dispatcher.router.llmClient = classifier
+	dispatcher.router.useLLM = true
+
+	output := captureOutput(t, func() {
+		_, _ = dispatcher.Dispatch(context.Background(), "create a step by step plan for us")
+	})
+
+	if !strings.Contains(output, noActiveProjectMessage()) {
+		t.Fatalf("expected guidance to select project, got: %s", output)
+	}
+}
+
+func TestDeepSeekSuccessBeatsKeywordFallback(t *testing.T) {
+	restore := useTempWorkdir(t)
+	defer restore()
+
+	dbConn := connectTestDB(t, "file:project-deepseek-priority.db?_foreign_keys=1")
+	actor := models.User{ID: "user-priority", Name: "Priority"}
+	dispatcher, state, svc := newTestDispatcher(t, dbConn, actor)
+
+	project, _, err := svc.CreateProjectFromChat(context.Background(), services.CreateProjectInput{Title: "minecraft speedrun"}, actor)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	state.ActiveProjectID = project.ID
+	state.ActiveProjectTitle = project.Title
+
+	classifier := &fakeClassifierLLM{resp: `{"domain":"project","intent":"project_create_plan","confidence":0.95}`}
+	dispatcher.router.llmClient = classifier
+	dispatcher.router.useLLM = true
+
+	output := captureOutput(t, func() {
+		_, _ = dispatcher.Dispatch(context.Background(), "just wondering, maybe tell me something?")
+	})
+
+	if !strings.Contains(strings.ToLower(output), "plan created") {
+		t.Fatalf("expected DeepSeek classification to trigger plan creation despite weak keywords, got: %s", output)
+	}
+}
+
+func TestDeepSeekFailureDoesNotFallbackToKeywords(t *testing.T) {
+	restore := useTempWorkdir(t)
+	defer restore()
+
+	dbConn := connectTestDB(t, "file:project-fallback.db?_foreign_keys=1")
+	actor := models.User{ID: "user-fallback", Name: "Fallback"}
+	dispatcher, state, svc := newTestDispatcher(t, dbConn, actor)
+
+	project, _, err := svc.CreateProjectFromChat(context.Background(), services.CreateProjectInput{Title: "minecraft speedrun"}, actor)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	state.ActiveProjectID = project.ID
+	state.ActiveProjectTitle = project.Title
+
+	classifier := &fakeClassifierLLM{resp: "<<<not json>>>"}
+	dispatcher.router.llmClient = classifier
+	dispatcher.router.useLLM = true
+
+	output := captureOutput(t, func() {
+		_, _ = dispatcher.Dispatch(context.Background(), "create plan for minecraft")
+	})
+
+	if !strings.Contains(strings.ToLower(output), "deepseek couldn't understand") {
+		t.Fatalf("expected deepseek failure notice instead of keyword fallback, got: %s", output)
+	}
+}
+
+func TestProjectExecutionDoesNotCallLLMDuringHandlers(t *testing.T) {
+	restore := useTempWorkdir(t)
+	defer restore()
+
+	dbConn := connectTestDB(t, "file:project-no-llm-exec.db?_foreign_keys=1")
+	actor := models.User{ID: "user-no-llm", Name: "NoLLM"}
+	dispatcher, state, svc := newTestDispatcher(t, dbConn, actor)
+
+	project, _, err := svc.CreateProjectFromChat(context.Background(), services.CreateProjectInput{Title: "minecraft speedrun"}, actor)
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	state.ActiveProjectID = project.ID
+	state.ActiveProjectTitle = project.Title
+
+	classifier := &fakeClassifierLLM{resp: `{"domain":"project","intent":"project_create_plan","confidence":0.9}`}
+	dispatcher.router.llmClient = classifier
+	dispatcher.router.useLLM = true
+
+	_ = captureOutput(t, func() {
+		_, _ = dispatcher.Dispatch(context.Background(), "create plan now")
+	})
+
+	if classifier.answerCalls != 0 || classifier.editCalls != 0 {
+		t.Fatalf("Answer/Edit should not be called during project execution, got answer=%d edit=%d", classifier.answerCalls, classifier.editCalls)
+	}
+	if classifier.generateCalls == 0 {
+		t.Fatalf("expected Generate to be called for classification")
+	}
+}
+
 func TestResolvedProjectSkipsAmbiguity(t *testing.T) {
 	restore := useTempWorkdir(t)
 	defer restore()
@@ -358,6 +531,28 @@ func (f *failLLM) Answer(stdcontext.Context, string, []ingestion.Chunk, botconte
 func (f *failLLM) Edit(stdcontext.Context, string, string, []ingestion.Chunk, botcontext.ContextType) (string, error) {
 	f.t.Fatalf("LLM Edit should not be called for project queries")
 	return "", fmt.Errorf("should not be called")
+}
+
+type fakeClassifierLLM struct {
+	resp          string
+	generateCalls int
+	answerCalls   int
+	editCalls     int
+}
+
+func (f *fakeClassifierLLM) Generate(stdcontext.Context, []llm.Message) (string, error) {
+	f.generateCalls++
+	return f.resp, nil
+}
+
+func (f *fakeClassifierLLM) Answer(stdcontext.Context, string, []ingestion.Chunk, botcontext.ContextType) (string, error) {
+	f.answerCalls++
+	return "", nil
+}
+
+func (f *fakeClassifierLLM) Edit(stdcontext.Context, string, string, []ingestion.Chunk, botcontext.ContextType) (string, error) {
+	f.editCalls++
+	return "", nil
 }
 
 func newTestDispatcher(t *testing.T, dbConn *sql.DB, actor models.User) (*Dispatcher, *SessionState, *services.ProjectService) {
