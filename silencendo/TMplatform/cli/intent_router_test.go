@@ -396,8 +396,12 @@ func TestDeepSeekFailureDoesNotFallbackToKeywords(t *testing.T) {
 		_, _ = dispatcher.Dispatch(context.Background(), "create plan for minecraft")
 	})
 
-	if !strings.Contains(strings.ToLower(output), "deepseek couldn't understand") {
-		t.Fatalf("expected deepseek failure notice instead of keyword fallback, got: %s", output)
+	outLower := strings.ToLower(output)
+	if strings.Contains(outLower, "deepseek couldn't understand") {
+		t.Fatalf("LLM failure should not surface when heuristics can handle it, got: %s", output)
+	}
+	if !strings.Contains(outLower, "plan created") {
+		t.Fatalf("expected plan creation fallback when LLM fails, got: %s", output)
 	}
 }
 

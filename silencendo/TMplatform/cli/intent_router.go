@@ -62,6 +62,7 @@ type ResolvedProject struct {
 func (r *IntentRouter) Route(ctx context.Context, input string, resolved *ResolvedProject) IntentResult {
 	normalized := strings.TrimSpace(input)
 	lower := strings.ToLower(normalized)
+	llmFailed := false
 
 	if r.useLLM && r.llmClient != nil {
 		if classified := r.classifyWithDeepSeek(ctx, normalized, resolved); classified != nil {
@@ -88,7 +89,7 @@ func (r *IntentRouter) Route(ctx context.Context, input string, resolved *Resolv
 			}
 		}
 
-		return IntentResult{Type: IntentKnowledge, Confidence: 0, Resolved: resolved, LLMFailed: true}
+		llmFailed = true
 	}
 
 	// No LLM available; fall back to lightweight heuristics.
@@ -119,7 +120,7 @@ func (r *IntentRouter) Route(ctx context.Context, input string, resolved *Resolv
 		return IntentResult{Type: IntentDocument, Confidence: 0.6}
 	}
 
-	return IntentResult{Type: IntentKnowledge, Confidence: 0.55}
+	return IntentResult{Type: IntentKnowledge, Confidence: 0.55, LLMFailed: llmFailed}
 }
 
 type llmIntentResponse struct {
@@ -227,7 +228,7 @@ func (r *IntentRouter) classifyWithDeepSeek(ctx context.Context, input string, r
 	defer cancel()
 
 	messages := []llm.Message{
-		{Role: "system", Content: "Classify the user message. Respond with JSON only: {\"domain\": \"project|docs|unknown\", \"intent\": one of [project_show_content, project_show_plan, project_create_plan, project_list_tasks, project_list_stages, project_list_members, project_count_done_tasks, docs_command, docs_qa, unknown], \"confidence\": 0-1}. If the user asks about project content (e.g., 'what is the content', 'show the content'), choose intent=project_show_content. Do not guess project names. If no active project is mentioned, still classify intent but NEVER invent a project. Return ONLY JSON."},
+		{Role: "system", Content: "Classify the user message. Respond with JSON only: {\"domain\": \"project|docs|unknown\", \"intent\": one of [project_show_content, project_show_plan, project_create_plan, project_list_tasks, project_list_stages, project_list_members, project_assign_responsible, project_count_done_tasks, docs_command, docs_qa, unknown], \"confidence\": 0-1}. If the user asks about project content (e.g., 'what is the content', 'show the content'), choose intent=project_show_content. Do not guess project names. If no active project is mentioned, still classify intent but NEVER invent a project. Return ONLY JSON."},
 		{Role: "user", Content: input},
 	}
 
@@ -279,6 +280,8 @@ func mapClassifiedProjectIntent(input string, resolved *ResolvedProject, intent 
 		match.Intent = chatbot.IntentAddStagesAndTasks
 	case "project_show_content", "project_show_plan", "project_list_tasks", "project_list_stages", "project_list_members", "project_count_done_tasks":
 		match.Intent = chatbot.IntentShowProject
+	case "project_assign_responsible":
+		match.Intent = chatbot.IntentAssignResponsible
 	}
 
 	if resolved != nil && strings.TrimSpace(resolved.Title) != "" {
