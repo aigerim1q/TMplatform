@@ -26,5 +26,11 @@ echo "✅ Go is installed!"
 
 echo ""
 echo "🚀 Starting unified TMplatform bot..."
+
+# Load environment variables from .env file in parent directory if it exists
+if [ -f "../.env" ]; then
+    export $(cat "../.env" | xargs)
+fi
+
 cd silencendo/TMplatform
 ./run.sh

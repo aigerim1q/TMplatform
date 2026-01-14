@@ -181,7 +181,7 @@ func (h *Handler) HandleWithMatch(ctx context.Context, match IntentMatch) (handl
 		if len(details.Stages) == 0 && len(details.Tasks) == 0 {
 			return handled, fmt.Sprintf("No plan exists yet for %s. Use 'create plan for <names> ...' to add one.", details.Project.Title), nil
 		}
-		return handled, formatProjectDetails(details), nil
+		return handled, h.formatProjectDetailsWithUserNames(ctx, details), nil
 	}
 
 	return false, "", nil
@@ -279,6 +279,120 @@ func formatProjectDetails(details models.ProjectDetails) string {
 			assignee := "unassigned"
 			if t.AssigneeID != nil {
 				assignee = "assigned"
+			}
+			due := ""
+			if t.DueDate != nil {
+				due = t.DueDate.Format("2006-01-02")
+			}
+			if due != "" {
+				fmt.Fprintf(&b, "  - [%s] %s (priority: %s, assignee: %s, due: %s)\n", t.Status, t.Title, t.Priority, assignee, due)
+			} else {
+				fmt.Fprintf(&b, "  - [%s] %s (priority: %s, assignee: %s)\n", t.Status, t.Title, t.Priority, assignee)
+			}
+			totalShown++
+		}
+		if totalShown >= taskLimit {
+			break
+		}
+	}
+
+	if totalShown < len(details.Tasks) {
+		fmt.Fprintf(&b, "(showing first %d tasks out of %d)\n", totalShown, len(details.Tasks))
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
+func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details models.ProjectDetails) string {
+	const taskLimit = 50
+	var b strings.Builder
+	fmt.Fprintf(&b, "📁 %s (status: %s)\n", details.Project.Title, details.Project.Status)
+	if strings.TrimSpace(details.Project.Description) != "" {
+		fmt.Fprintf(&b, "Description: %s\n", details.Project.Description)
+	}
+
+	if len(details.Stages) == 0 {
+		b.WriteString("Stages: none\n")
+	} else {
+		b.WriteString("Stages:\n")
+		sorted := make([]models.Stage, len(details.Stages))
+		copy(sorted, details.Stages)
+		sort.SliceStable(sorted, func(i, j int) bool {
+			if sorted[i].OrderIndex == sorted[j].OrderIndex {
+				return sorted[i].Title < sorted[j].Title
+			}
+			if sorted[i].OrderIndex == 0 {
+				return false
+			}
+			if sorted[j].OrderIndex == 0 {
+				return true
+			}
+			return sorted[i].OrderIndex < sorted[j].OrderIndex
+		})
+		for _, s := range sorted {
+			resp := "unassigned"
+			if s.ResponsibleID != nil {
+				// Try to get the actual user name
+				user, err := h.Projects.GetUserByID(ctx, *s.ResponsibleID)
+				if err == nil && user.Name != "" {
+					resp = user.Name
+				} else {
+					resp = "assigned"
+				}
+			}
+			fmt.Fprintf(&b, "- %s (responsible: %s)\n", s.Title, resp)
+		}
+	}
+
+	if len(details.Tasks) == 0 {
+		b.WriteString("Tasks: none")
+		return strings.TrimSpace(b.String())
+	}
+
+	// group tasks by stage
+	byStage := map[string][]models.Task{}
+	for _, t := range details.Tasks {
+		key := ""
+		if t.StageID != nil {
+			key = *t.StageID
+		}
+		byStage[key] = append(byStage[key], t)
+	}
+
+	stageOrder := []string{}
+	for _, s := range details.Stages {
+		stageOrder = append(stageOrder, s.ID)
+	}
+	stageOrder = append(stageOrder, "") // for unassigned tasks
+
+	b.WriteString("Tasks:\n")
+	totalShown := 0
+	for _, stageID := range stageOrder {
+		tasks := byStage[stageID]
+		if len(tasks) == 0 {
+			continue
+		}
+		stageTitle := "No stage"
+		for _, s := range details.Stages {
+			if s.ID == stageID {
+				stageTitle = s.Title
+				break
+			}
+		}
+		fmt.Fprintf(&b, "• %s:\n", stageTitle)
+		for _, t := range tasks {
+			if totalShown >= taskLimit {
+				break
+			}
+			assignee := "unassigned"
+			if t.AssigneeID != nil {
+				// Try to get the actual user name
+				user, err := h.Projects.GetUserByID(ctx, *t.AssigneeID)
+				if err == nil && user.Name != "" {
+					assignee = user.Name
+				} else {
+					assignee = "assigned"
+				}
 			}
 			due := ""
 			if t.DueDate != nil {

@@ -943,3 +943,14 @@ func uniqueNonEmpty(values []string) []string {
 	}
 	return out
 }
+
+// GetUserByID retrieves a user by their ID
+func (s *ProjectService) GetUserByID(ctx context.Context, userID string) (models.User, error) {
+	var user models.User
+	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		var err error
+		user, err = s.users.GetByID(ctx, tx, userID)
+		return err
+	})
+	return user, err
+}

@@ -1,4 +1,10 @@
 #!/bin/bash
 # Thin wrapper to run Silencendo via the main script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Load environment variables from .env file if it exists
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    export $(cat "$SCRIPT_DIR/.env" | xargs)
+fi
+
 exec "$SCRIPT_DIR/run_silencendo.sh" "$@"

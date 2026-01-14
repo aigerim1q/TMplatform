@@ -80,7 +80,7 @@ func DetectIntent(message string) IntentMatch {
 	}
 
 	// Assignment: if structured, assign; otherwise treat as planning for active project.
-	if strings.Contains(lower, "assign") || strings.Contains(lower, "responsible") || strings.Contains(lower, "назначь") {
+	if strings.Contains(lower, "assign") || strings.Contains(lower, "responsible") || strings.Contains(lower, "назначь") || containsAssignmentKeywords(lower) {
 		entityType, assignee, entityName := parseAssign(lower)
 		if entityType != "" && assignee != "" && entityName != "" {
 			return IntentMatch{Intent: IntentAssignResponsible, EntityType: entityType, EntityName: entityName, AssigneeName: assignee, Confidence: 0.65}
@@ -247,6 +247,22 @@ func extractPlanMembers(original string) []string {
 	return members
 }
 
+func containsAssignmentKeywords(lower string) bool {
+	// Check for common assignment expressions beyond basic keywords
+	assignmentPatterns := []string{
+		"give task", "give the task", "put on task", "put him on", "put her on",
+		"have him do", "have her do", "let him", "let her", "make him",
+		"make her", "should do", "needs to do", "take care of", "handle",
+		"is responsible for", "will handle", "will take", "will work on",
+	}
+	for _, pattern := range assignmentPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
 func parseAssign(lower string) (string, string, string) {
 	// Examples: "assign John to stage Design", "assign Kate to task Permits".
 	re := regexp.MustCompile(`assign\s+([^\s]+).*\s(stage|task)\s+([^,;.]+)`) // assignee, type, name
@@ -264,5 +280,62 @@ func parseAssign(lower string) (string, string, string) {
 		}
 		return entityType, m[1], strings.TrimSpace(m[3])
 	}
+
+	// More flexible assignment patterns for natural language
+	// Handle "Yusuf to craft eyes of ender" (where "assign Yusuf to craft eyes of ender" was intended)
+	flexRe := regexp.MustCompile(`(?:assign|put|give|let|make|have|get)\s+(?:to\s+)?(\w+)\s+(?:on\s+|with\s+|to\s+|for\s+)?(?:task|the\s+task|stage|the\s+stage)?\s*(.+?)(?:\.|$|,|!)`)
+	if m := flexRe.FindStringSubmatch(lower); len(m) >= 3 {
+		// Try to determine if it's a task or stage based on context clues
+		entityName := strings.TrimSpace(m[2])
+		entityType := "task" // default to task
+
+		// Check if the entity name contains stage-related terms
+		if strings.Contains(entityName, "stage") || strings.Contains(entityName, "phase") || strings.Contains(entityName, "step") {
+			entityType = "stage"
+		}
+
+		return entityType, m[1], entityName
+	}
+
+	// Handle patterns like "Yusuf should do craft eyes of ender", "Yusuf will handle the task", etc.
+	verbBasedRe := regexp.MustCompile(`(\w+)\s+(?:should|will|needs to|has to|must|can|could|would|is responsible for|will take on|will work on|will complete|will finish|take care of|handles?)\s+(?:the\s+)?(task|stage)?\s*(.+?)(?:\.|$|,|!)`)
+	if m := verbBasedRe.FindStringSubmatch(lower); len(m) >= 3 {
+		entityType := "task" // default to task
+		entityName := strings.TrimSpace(m[3])
+
+		if len(m) > 2 && strings.TrimSpace(m[2]) != "" {
+			entityType = strings.TrimSpace(m[2])
+		} else {
+			// Determine type based on content
+			if strings.Contains(entityName, "stage") || strings.Contains(entityName, "phase") || strings.Contains(entityName, "step") {
+				entityType = "stage"
+			}
+		}
+
+		return entityType, m[1], entityName
+	}
+
+	// Handle patterns like "make Dastan and Yussuf responsible of setting spawn and placing beds"
+	multiAssignRe := regexp.MustCompile(`(?:make|let|put|assign)\s+(.+?)\s+(?:responsible|in charge|to handle|to do|for)\s+(?:of\s+)?(.+?)(?:\.|$|,|!)`)
+	if m := multiAssignRe.FindStringSubmatch(lower); len(m) >= 3 {
+		// For multiple assignees, we'll take the first one for now
+		// Split by "and" or "," to get the first assignee
+		assignees := strings.Split(m[1], " and ")
+		firstAssignee := strings.TrimSpace(assignees[0])
+		// Remove any commas
+		commaSplit := strings.Split(firstAssignee, ",")
+		firstAssignee = strings.TrimSpace(commaSplit[0])
+
+		entityName := strings.TrimSpace(m[2])
+		entityType := "task" // default to task
+
+		// Determine type based on content
+		if strings.Contains(entityName, "stage") || strings.Contains(entityName, "phase") || strings.Contains(entityName, "step") {
+			entityType = "stage"
+		}
+
+		return entityType, firstAssignee, entityName
+	}
+
 	return "", "", ""
 }
