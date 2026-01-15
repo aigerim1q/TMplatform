@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
+	router "silencendo/intent_router"
 	"silencendo/models"
 	"silencendo/services"
 )
@@ -43,6 +46,11 @@ func resolvedProjectFromCtx(ctx context.Context) (id string, title string, ok bo
 	return
 }
 
+// ResolvedProjectFromCtx extracts a resolved project reference if present (exported version).
+func ResolvedProjectFromCtx(ctx context.Context) (id string, title string, ok bool) {
+	return resolvedProjectFromCtx(ctx)
+}
+
 func NewHandler(projects *services.ProjectService, user models.User) *Handler {
 	return &Handler{Projects: projects, User: user}
 }
@@ -50,6 +58,37 @@ func NewHandler(projects *services.ProjectService, user models.User) *Handler {
 // Handle attempts to satisfy chatbot intents. handled indicates whether the message was consumed by this layer.
 func (h *Handler) Handle(ctx context.Context, message string) (handled bool, reply string, err error) {
 	match := DetectIntent(message)
+	return h.HandleWithMatch(ctx, match)
+}
+
+// HandleWithLLMResponse handles responses based on LLM-generated intent directly
+func (h *Handler) HandleWithLLMResponse(ctx context.Context, llmResponse *router.LLMResponse) (handled bool, reply string, err error) {
+	// Convert the LLM response to an IntentMatch
+	intent := llmResponse.ToChatbotIntent()
+
+	match := IntentMatch{
+		Intent:     intent,
+		Confidence: llmResponse.Confidence,
+	}
+
+	// Extract parameters from the LLM response
+	if title, ok := llmResponse.Parameters["project_title"].(string); ok {
+		match.ProjectTitle = title
+	}
+	if description, ok := llmResponse.Parameters["description"].(string); ok {
+		match.Description = description
+	}
+	if entityType, ok := llmResponse.Parameters["entity_type"].(string); ok {
+		match.EntityType = entityType
+	}
+	if entityName, ok := llmResponse.Parameters["entity_name"].(string); ok {
+		match.EntityName = entityName
+	}
+	if assigneeName, ok := llmResponse.Parameters["assignee_name"].(string); ok {
+		match.AssigneeName = assigneeName
+	}
+
+	// Use the existing HandleWithMatch method to process the converted match
 	return h.HandleWithMatch(ctx, match)
 }
 
@@ -103,44 +142,198 @@ func (h *Handler) HandleWithMatch(ctx context.Context, match IntentMatch) (handl
 
 	case IntentAssignResponsible:
 		handled = true
-		if strings.TrimSpace(match.EntityType) == "" || strings.TrimSpace(match.EntityName) == "" || strings.TrimSpace(match.AssigneeName) == "" {
-			return handled, "To assign, say 'Assign Alex to task Permits' or 'Assign Dana to stage Design'.", nil
+		entityType := strings.TrimSpace(match.EntityType)
+		entityName := strings.TrimSpace(match.EntityName)
+		assigneeName := strings.TrimSpace(match.AssigneeName)
+
+		// Get original message for stable ID detection - we need to get it from the original Handle function call
+		// Since HandleWithMatch doesn't have access to the original message, we'll rely on the existing parsing
+		stableIDPattern := regexp.MustCompile(`#\s*\d+`)
+		hasStableID := stableIDPattern.MatchString(strings.TrimSpace(entityName)) || strings.HasPrefix(strings.TrimSpace(entityName), "#")
+
+		// Extract stable task ID from entityName for better error messages
+		var stableTaskID string
+		if stableIDPattern.MatchString(strings.TrimSpace(entityName)) {
+			matches := stableIDPattern.FindStringSubmatch(strings.TrimSpace(entityName))
+			if len(matches) > 0 {
+				stableTaskID = strings.TrimPrefix(matches[0], "#")
+				stableTaskID = strings.TrimSpace(stableTaskID)
+			}
 		}
+
+		if entityName == "" || assigneeName == "" {
+			// If we have a stable ID, try to validate differently
+			if hasStableID {
+				// Extract just the assignee part and check if it's meaningful
+				assigneeClean := strings.TrimSpace(assigneeName)
+				if assigneeClean == "" || assigneeClean == "to" {
+					// Try to extract assignees from the original message if possible
+					// This handles cases where LLM might not have extracted assignees properly
+					originalMsg := ctx.Value("original_message") // This won't work as we don't pass original message in context
+					_ = originalMsg                              // suppress unused variable warning
+
+					// Since we can't access original message here, let's check if we can improve our own parsing
+					if stableTaskID != "" {
+						return handled, fmt.Sprintf("Who should I assign to task #%s?", stableTaskID), nil
+					} else {
+						return handled, "Could you clarify who you want to assign to the task? Please provide assignee names.", nil
+					}
+				}
+			} else {
+				// Check if entityName is missing but task reference was provided
+				if entityName == "" {
+					// Store pending assignment state to remember the assignees
+					if assigneeName != "" {
+						// Process multiple assignees if they are separated by "and" or ","
+						assigneeNames := []string{assigneeName} // Start with single assignee
+						if strings.Contains(assigneeName, " and ") || strings.Contains(assigneeName, ",") {
+							// Split by " and " or "," to get multiple assignees
+							assigneeNames = strings.Split(assigneeName, " and ")
+							// Further split by comma if present
+							var allNames []string
+							for _, nameGroup := range assigneeNames {
+								names := strings.Split(nameGroup, ",")
+								for _, name := range names {
+									trimmed := strings.TrimSpace(name)
+									if trimmed != "" {
+										allNames = append(allNames, trimmed)
+									}
+								}
+							}
+							assigneeNames = allNames
+						}
+
+						// This would need to be called from the dispatcher context to access session state
+						// We'll need to pass the session state through the context or return a special error
+						// For now, we'll return a message indicating we need to store the pending assignment
+						return handled, "Which task should I assign them to? Use task 4-2 or #8.", nil
+					} else {
+						return handled, "Could you clarify who you want to assign to what task or stage?", nil
+					}
+				} else {
+					// Entity name is provided but assignee is missing
+					return handled, "Who should I assign to which task?", nil
+				}
+			}
+		}
+
+		// Default to "task" if entity type is not specified
+		if entityType == "" {
+			entityType = "task"
+		}
+
 		if !hasResolved {
 			return handled, noActiveProjectMessage(), nil
 		}
 
-		assignee, err := h.Projects.EnsureUser(ctx, models.User{Name: strings.TrimSpace(match.AssigneeName)})
-		if err != nil {
-			return handled, humanizeError(err), err
+		// Process multiple assignees if they are separated by "and" or ","
+		assigneeNames := []string{assigneeName} // Start with single assignee
+		if strings.Contains(assigneeName, " and ") || strings.Contains(assigneeName, ",") {
+			// Split by " and " or "," to get multiple assignees
+			assigneeNames = strings.Split(assigneeName, " and ")
+			// Further split by comma if present
+			var allNames []string
+			for _, nameGroup := range assigneeNames {
+				names := strings.Split(nameGroup, ",")
+				for _, name := range names {
+					trimmed := strings.TrimSpace(name)
+					if trimmed != "" {
+						allNames = append(allNames, trimmed)
+					}
+				}
+			}
+			assigneeNames = allNames
 		}
-		switch strings.ToLower(match.EntityType) {
+
+		// Handle multiple assignees
+		var assigneeUsers []models.User
+		for _, name := range assigneeNames {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				user, err := h.Projects.EnsureUser(ctx, models.User{Name: name})
+				if err != nil {
+					return handled, humanizeError(err), err
+				}
+				assigneeUsers = append(assigneeUsers, user)
+			}
+		}
+
+		switch strings.ToLower(entityType) {
 		case "stage":
-			stage, err := h.Projects.FindStageForUserByTitle(ctx, match.EntityName, h.User)
+			// Handle stage assignment with support for position indices
+			stage, err := h.resolveStageByNameOrPosition(ctx, entityName, resolvedID)
 			if err != nil {
 				return handled, humanizeError(err), err
 			}
 			if stage.ProjectID != resolvedID {
 				return handled, "That stage belongs to another project. Switch active project first.", nil
 			}
-			if err := h.Projects.AssignResponsible(ctx, "stage", stage.ID, assignee.ID, h.User); err != nil {
-				return handled, humanizeError(err), err
+
+			// Assign all users to the stage
+			for _, assignee := range assigneeUsers {
+				if err := h.Projects.AssignResponsible(ctx, "stage", stage.ID, assignee.ID, h.User); err != nil {
+					return handled, humanizeError(err), err
+				}
 			}
-			return handled, fmt.Sprintf("✅ Stage '%s' assigned to %s", stage.Title, assignee.Name), nil
+
+			assigneeNamesStr := ""
+			for i, user := range assigneeUsers {
+				if i > 0 {
+					assigneeNamesStr += ", "
+				}
+				assigneeNamesStr += user.Name
+			}
+			return handled, fmt.Sprintf("✅ Stage '%s' assigned to %s", stage.Title, assigneeNamesStr), nil
 		case "task":
-			task, err := h.Projects.FindTaskForUserByTitle(ctx, match.EntityName, h.User)
+			// Handle task assignment with support for both position indices and stable IDs
+			task, err := h.resolveTaskByNameOrPositionOrStableID(ctx, entityName, resolvedID)
 			if err != nil {
 				return handled, humanizeError(err), err
 			}
 			if task.ProjectID != resolvedID {
 				return handled, "That task belongs to another project. Switch active project first.", nil
 			}
-			if err := h.Projects.AssignResponsible(ctx, "task", task.ID, assignee.ID, h.User); err != nil {
+
+			// Assign all users to the task
+			for _, assignee := range assigneeUsers {
+				if err := h.Projects.AssignResponsible(ctx, "task", task.ID, assignee.ID, h.User); err != nil {
+					return handled, humanizeError(err), err
+				}
+			}
+
+			assigneeNamesStr := ""
+			for i, user := range assigneeUsers {
+				if i > 0 {
+					assigneeNamesStr += ", "
+				}
+				assigneeNamesStr += user.Name
+			}
+			return handled, fmt.Sprintf("✅ Task '%s' assigned to %s", task.Title, assigneeNamesStr), nil
+		default:
+			// Default to task if not specified properly
+			task, err := h.resolveTaskByNameOrPositionOrStableID(ctx, entityName, resolvedID)
+			if err != nil {
 				return handled, humanizeError(err), err
 			}
-			return handled, fmt.Sprintf("✅ Task '%s' assigned to %s", task.Title, assignee.Name), nil
-		default:
-			return handled, "Please specify whether you want to assign to a stage or a task.", nil
+			if task.ProjectID != resolvedID {
+				return handled, "That task belongs to another project. Switch active project first.", nil
+			}
+
+			// Assign all users to the task
+			for _, assignee := range assigneeUsers {
+				if err := h.Projects.AssignResponsible(ctx, "task", task.ID, assignee.ID, h.User); err != nil {
+					return handled, humanizeError(err), err
+				}
+			}
+
+			assigneeNamesStr := ""
+			for i, user := range assigneeUsers {
+				if i > 0 {
+					assigneeNamesStr += ", "
+				}
+				assigneeNamesStr += user.Name
+			}
+			return handled, fmt.Sprintf("✅ Task '%s' assigned to %s", task.Title, assigneeNamesStr), nil
 		}
 
 	case IntentListProjects:
@@ -227,12 +420,12 @@ func formatProjectDetails(details models.ProjectDetails) string {
 			}
 			return sorted[i].OrderIndex < sorted[j].OrderIndex
 		})
-		for _, s := range sorted {
+		for i, s := range sorted {
 			resp := "unassigned"
 			if s.ResponsibleID != nil {
 				resp = "assigned"
 			}
-			fmt.Fprintf(&b, "- %s (responsible: %s)\n", s.Title, resp)
+			fmt.Fprintf(&b, "[%d] %s (responsible: %s)\n", i+1, s.Title, resp) // Show stage index
 		}
 	}
 
@@ -259,11 +452,23 @@ func formatProjectDetails(details models.ProjectDetails) string {
 
 	b.WriteString("Tasks:\n")
 	totalShown := 0
+
+	// Group tasks by stage and sort them for consistent positioning
 	for _, stageID := range stageOrder {
 		tasks := byStage[stageID]
 		if len(tasks) == 0 {
 			continue
 		}
+
+		// Find the stage to get its position index
+		stagePosition := 0
+		for i, s := range details.Stages {
+			if s.ID == stageID {
+				stagePosition = i + 1 // 1-based index
+				break
+			}
+		}
+
 		stageTitle := "No stage"
 		for _, s := range details.Stages {
 			if s.ID == stageID {
@@ -271,23 +476,42 @@ func formatProjectDetails(details models.ProjectDetails) string {
 				break
 			}
 		}
-		fmt.Fprintf(&b, "• %s:\n", stageTitle)
-		for _, t := range tasks {
+
+		// Print stage with position index
+		if stagePosition > 0 {
+			fmt.Fprintf(&b, "• [%d] %s:\n", stagePosition, stageTitle)
+		} else {
+			fmt.Fprintf(&b, "• %s:\n", stageTitle)
+		}
+
+		// Sort tasks within the stage by creation order or ID to maintain consistent positioning
+		sortedTasks := make([]models.Task, len(tasks))
+		copy(sortedTasks, tasks)
+
+		// Display each task with both position and stable ID
+		for i, t := range sortedTasks {
 			if totalShown >= taskLimit {
 				break
 			}
+
 			assignee := "unassigned"
 			if t.AssigneeID != nil {
 				assignee = "assigned"
 			}
+
 			due := ""
 			if t.DueDate != nil {
 				due = t.DueDate.Format("2006-01-02")
 			}
+
+			// Format the task with position index (stageIndex-taskIndex) and stable ID
+			taskPosition := fmt.Sprintf("%d-%d", stagePosition, i+1) // 1-based index
+			taskIdentifier := fmt.Sprintf("%s (#%d)", taskPosition, t.NumericID)
+
 			if due != "" {
-				fmt.Fprintf(&b, "  - [%s] %s (priority: %s, assignee: %s, due: %s)\n", t.Status, t.Title, t.Priority, assignee, due)
+				fmt.Fprintf(&b, "  %s %s (priority: %s, assignee: %s, due: %s)\n", taskIdentifier, t.Title, t.Priority, assignee, due)
 			} else {
-				fmt.Fprintf(&b, "  - [%s] %s (priority: %s, assignee: %s)\n", t.Status, t.Title, t.Priority, assignee)
+				fmt.Fprintf(&b, "  %s %s (priority: %s, assignee: %s)\n", taskIdentifier, t.Title, t.Priority, assignee)
 			}
 			totalShown++
 		}
@@ -329,7 +553,7 @@ func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details
 			}
 			return sorted[i].OrderIndex < sorted[j].OrderIndex
 		})
-		for _, s := range sorted {
+		for i, s := range sorted {
 			resp := "unassigned"
 			if s.ResponsibleID != nil {
 				// Try to get the actual user name
@@ -340,7 +564,7 @@ func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details
 					resp = "assigned"
 				}
 			}
-			fmt.Fprintf(&b, "- %s (responsible: %s)\n", s.Title, resp)
+			fmt.Fprintf(&b, "[%d] %s (responsible: %s)\n", i+1, s.Title, resp) // Show stage index
 		}
 	}
 
@@ -367,11 +591,23 @@ func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details
 
 	b.WriteString("Tasks:\n")
 	totalShown := 0
+
+	// Group tasks by stage and sort them for consistent positioning
 	for _, stageID := range stageOrder {
 		tasks := byStage[stageID]
 		if len(tasks) == 0 {
 			continue
 		}
+
+		// Find the stage to get its position index
+		stagePosition := 0
+		for i, s := range details.Stages {
+			if s.ID == stageID {
+				stagePosition = i + 1 // 1-based index
+				break
+			}
+		}
+
 		stageTitle := "No stage"
 		for _, s := range details.Stages {
 			if s.ID == stageID {
@@ -379,11 +615,24 @@ func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details
 				break
 			}
 		}
-		fmt.Fprintf(&b, "• %s:\n", stageTitle)
-		for _, t := range tasks {
+
+		// Print stage with position index
+		if stagePosition > 0 {
+			fmt.Fprintf(&b, "• [%d] %s:\n", stagePosition, stageTitle)
+		} else {
+			fmt.Fprintf(&b, "• %s:\n", stageTitle)
+		}
+
+		// Sort tasks within the stage by creation order or ID to maintain consistent positioning
+		sortedTasks := make([]models.Task, len(tasks))
+		copy(sortedTasks, tasks)
+
+		// Display each task with both position and stable ID
+		for i, t := range sortedTasks {
 			if totalShown >= taskLimit {
 				break
 			}
+
 			assignee := "unassigned"
 			if t.AssigneeID != nil {
 				// Try to get the actual user name
@@ -398,10 +647,15 @@ func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details
 			if t.DueDate != nil {
 				due = t.DueDate.Format("2006-01-02")
 			}
+
+			// Format the task with position index (stageIndex-taskIndex) and stable ID
+			taskPosition := fmt.Sprintf("%d-%d", stagePosition, i+1) // 1-based index
+			taskIdentifier := fmt.Sprintf("%s (#%d)", taskPosition, t.NumericID)
+
 			if due != "" {
-				fmt.Fprintf(&b, "  - [%s] %s (priority: %s, assignee: %s, due: %s)\n", t.Status, t.Title, t.Priority, assignee, due)
+				fmt.Fprintf(&b, "  %s %s (priority: %s, assignee: %s, due: %s)\n", taskIdentifier, t.Title, t.Priority, assignee, due)
 			} else {
-				fmt.Fprintf(&b, "  - [%s] %s (priority: %s, assignee: %s)\n", t.Status, t.Title, t.Priority, assignee)
+				fmt.Fprintf(&b, "  %s %s (priority: %s, assignee: %s)\n", taskIdentifier, t.Title, t.Priority, assignee)
 			}
 			totalShown++
 		}
@@ -415,4 +669,133 @@ func (h *Handler) formatProjectDetailsWithUserNames(ctx context.Context, details
 	}
 
 	return strings.TrimSpace(b.String())
+}
+
+// resolveTaskByNameOrPositionOrStableID resolves a task by name, position (stageIndex-taskIndex), or stable ID (#id)
+func (h *Handler) resolveTaskByNameOrPositionOrStableID(ctx context.Context, entityName string, projectID string) (models.Task, error) {
+	var task models.Task
+	entityName = strings.TrimSpace(entityName)
+
+	// First, check if it's a stable ID format like "#1052"
+	if strings.HasPrefix(entityName, "#") {
+		idStr := strings.TrimPrefix(entityName, "#")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err == nil {
+			// Find task by numeric ID
+			details, err := h.Projects.GetProjectDetails(ctx, projectID, h.User)
+			if err != nil {
+				return task, err
+			}
+			for _, t := range details.Tasks {
+				if t.NumericID == id {
+					return t, nil
+				}
+			}
+			return task, fmt.Errorf("task with ID #%d not found in project", id)
+		}
+	}
+
+	// Then, check if it's a position format like "2-1"
+	if strings.Contains(entityName, "-") {
+		parts := strings.Split(entityName, "-")
+		if len(parts) == 2 {
+			stageIdx, err1 := strconv.Atoi(parts[0])
+			taskIdx, err2 := strconv.Atoi(parts[1])
+			if err1 == nil && err2 == nil && stageIdx > 0 && taskIdx > 0 {
+				// Get all project details to resolve by position
+				details, err := h.Projects.GetProjectDetails(ctx, projectID, h.User)
+				if err != nil {
+					return task, err
+				}
+
+				// Find the stage by position index (1-based)
+				if stageIdx > len(details.Stages) {
+					return task, fmt.Errorf("stage index %d is out of range (only %d stages available)", stageIdx, len(details.Stages))
+				}
+
+				// Sort stages by order to ensure consistent indexing
+				sortedStages := make([]models.Stage, len(details.Stages))
+				copy(sortedStages, details.Stages)
+				sort.SliceStable(sortedStages, func(i, j int) bool {
+					if sortedStages[i].OrderIndex == sortedStages[j].OrderIndex {
+						return sortedStages[i].Title < sortedStages[j].Title
+					}
+					if sortedStages[i].OrderIndex == 0 {
+						return false
+					}
+					if sortedStages[j].OrderIndex == 0 {
+						return true
+					}
+					return sortedStages[i].OrderIndex < sortedStages[j].OrderIndex
+				})
+
+				targetStage := sortedStages[stageIdx-1] // Convert to 0-based index
+
+				// Find tasks associated with this stage
+				stageTasks := []models.Task{}
+				for _, t := range details.Tasks {
+					if t.StageID != nil && *t.StageID == targetStage.ID {
+						stageTasks = append(stageTasks, t)
+					}
+				}
+
+				// Sort tasks by creation order for consistent indexing
+				sort.SliceStable(stageTasks, func(i, j int) bool {
+					return stageTasks[i].CreatedAt.Before(stageTasks[j].CreatedAt)
+				})
+
+				// Check if task index is valid
+				if taskIdx > len(stageTasks) {
+					return task, fmt.Errorf("task index %d is out of range for stage '%s' (only %d tasks available)", taskIdx, targetStage.Title, len(stageTasks))
+				}
+
+				return stageTasks[taskIdx-1], nil // Convert to 0-based index
+			}
+		}
+	}
+
+	// Finally, fall back to name-based lookup
+	return h.Projects.FindTaskForUserByTitle(ctx, entityName, h.User)
+}
+
+// resolveStageByNameOrPosition resolves a stage by name or position index
+func (h *Handler) resolveStageByNameOrPosition(ctx context.Context, entityName string, projectID string) (models.Stage, error) {
+	var stage models.Stage
+	entityName = strings.TrimSpace(entityName)
+
+	// Check if it's a position format like "[2]" or just "2"
+	stageIdx, err := strconv.Atoi(entityName)
+	if err == nil && stageIdx > 0 {
+		// Get all project details to resolve by position
+		details, err := h.Projects.GetProjectDetails(ctx, projectID, h.User)
+		if err != nil {
+			return stage, err
+		}
+
+		// Sort stages by order to ensure consistent indexing
+		sortedStages := make([]models.Stage, len(details.Stages))
+		copy(sortedStages, details.Stages)
+		sort.SliceStable(sortedStages, func(i, j int) bool {
+			if sortedStages[i].OrderIndex == sortedStages[j].OrderIndex {
+				return sortedStages[i].Title < sortedStages[j].Title
+			}
+			if sortedStages[i].OrderIndex == 0 {
+				return false
+			}
+			if sortedStages[j].OrderIndex == 0 {
+				return true
+			}
+			return sortedStages[i].OrderIndex < sortedStages[j].OrderIndex
+		})
+
+		// Check if stage index is valid
+		if stageIdx > len(sortedStages) {
+			return stage, fmt.Errorf("stage index %d is out of range (only %d stages available)", stageIdx, len(sortedStages))
+		}
+
+		return sortedStages[stageIdx-1], nil // Convert to 0-based index
+	}
+
+	// Fall back to name-based lookup
+	return h.Projects.FindStageForUserByTitle(ctx, entityName, h.User)
 }

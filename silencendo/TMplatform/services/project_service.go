@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -12,6 +14,8 @@ import (
 	"silencendo/models"
 	"silencendo/repository"
 )
+
+// Remove global counter since we're using per-project counters now
 
 // CreateProjectInput holds chat-derived data for project creation.
 type CreateProjectInput struct {
@@ -280,6 +284,7 @@ func (s *ProjectService) CreateStagesAndTasksFromChat(ctx context.Context, proje
 						Description:     strings.TrimSpace(taskPlan.Description),
 						Status:          defaultIfEmpty(taskPlan.Status, "open"),
 						Priority:        defaultIfEmpty(taskPlan.Priority, "medium"),
+						NumericID:       0, // Will be assigned by assignTaskStableID
 					}
 
 					if task.Status == "" {
@@ -302,6 +307,11 @@ func (s *ProjectService) CreateStagesAndTasksFromChat(ctx context.Context, proje
 							}
 							task.AssigneeID = &assignee.ID
 						}
+					}
+
+					// Assign stable ID if not already set
+					if err := s.assignTaskStableID(ctx, tx, &task, projectID); err != nil {
+						return err
 					}
 
 					task, err = s.tasks.Create(ctx, tx, task)
@@ -399,6 +409,7 @@ func (s *ProjectService) createStagesTasksInternal(ctx context.Context, tx *sql.
 					Description:     strings.TrimSpace(taskPlan.Description),
 					Status:          defaultIfEmpty(taskPlan.Status, "open"),
 					Priority:        defaultIfEmpty(taskPlan.Priority, "medium"),
+					NumericID:       0, // Will be assigned by assignTaskStableID
 				}
 
 				if task.Status == "" {
@@ -421,6 +432,11 @@ func (s *ProjectService) createStagesTasksInternal(ctx context.Context, tx *sql.
 						}
 						task.AssigneeID = &assignee.ID
 					}
+				}
+
+				// Assign stable ID if not already set
+				if err := s.assignTaskStableID(ctx, tx, &task, projectID); err != nil {
+					return nil, nil, err
 				}
 
 				task, err = s.tasks.Create(ctx, tx, task)
@@ -816,6 +832,17 @@ func (s *ProjectService) GetProjectDetails(ctx context.Context, projectID string
 		}
 
 		details.Tasks, err = s.tasks.ListByProject(ctx, tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		// Ensure all tasks have stable IDs assigned (migration/backfill)
+		if err := s.ensureAllTasksHaveStableIDs(ctx, tx, projectID); err != nil {
+			return err
+		}
+
+		// Reload tasks to get updated NumericIDs after backfill
+		details.Tasks, err = s.tasks.ListByProject(ctx, tx, projectID)
 		return err
 	})
 
@@ -953,4 +980,197 @@ func (s *ProjectService) GetUserByID(ctx context.Context, userID string) (models
 		return err
 	})
 	return user, err
+}
+
+// GetAllTasksByProject retrieves all tasks for a specific project
+func (s *ProjectService) GetAllTasksByProject(ctx context.Context, projectID string, user models.User) ([]models.Task, error) {
+	var tasks []models.Task
+
+	err := db.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+		actor, err := s.ensureUser(ctx, tx, user)
+		if err != nil {
+			return err
+		}
+
+		if err := s.membershipsCheck(ctx, tx, projectID, actor.ID); err != nil {
+			return err
+		}
+
+		tasks, err = s.tasks.ListByProject(ctx, tx, projectID)
+		if err != nil {
+			return err
+		}
+
+		// Ensure all tasks have stable IDs assigned (migration/backfill)
+		if err := s.ensureAllTasksHaveStableIDs(ctx, tx, projectID); err != nil {
+			return err
+		}
+
+		// Reload tasks to get updated NumericIDs after backfill
+		tasks, err = s.tasks.ListByProject(ctx, tx, projectID)
+		return err
+	})
+
+	return tasks, err
+}
+
+// ensureAllTasksHaveStableIDs checks if any tasks in a project have NumericID = 0
+// and assigns them stable IDs in order (using stage display order, then task order)
+// Then updates the project's NextTaskStableID to max(existing) + 1
+func (s *ProjectService) ensureAllTasksHaveStableIDs(ctx context.Context, tx *sql.Tx, projectID string) error {
+	// Get all tasks for the project
+	allTasks, err := s.tasks.ListByProject(ctx, tx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to list tasks for project: %w", err)
+	}
+
+	// Get all stages for the project to determine display order
+	allStages, err := s.stages.ListByProject(ctx, tx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to list stages for project: %w", err)
+	}
+
+	// Check if there are any tasks with NumericID = 0
+	hasUnassignedTasks := false
+	for _, task := range allTasks {
+		if task.NumericID == 0 {
+			hasUnassignedTasks = true
+			break
+		}
+	}
+
+	if !hasUnassignedTasks {
+		// No tasks need assignment, just make sure project counter is correct
+		maxID := int64(1)
+		for _, task := range allTasks {
+			if task.NumericID >= maxID {
+				maxID = task.NumericID + 1
+			}
+		}
+
+		// Update project's NextTaskStableID to be max + 1
+		_, err = tx.ExecContext(ctx, `UPDATE projects SET next_task_stable_id = ? WHERE id = ?`, maxID, projectID)
+		if err != nil {
+			return fmt.Errorf("failed to update project next_task_stable_id: %w", err)
+		}
+		return nil
+	}
+
+	// Sort stages by display order (OrderIndex first, then by creation time)
+	sortedStages := make([]models.Stage, len(allStages))
+	copy(sortedStages, allStages)
+	sort.SliceStable(sortedStages, func(i, j int) bool {
+		if sortedStages[i].OrderIndex == sortedStages[j].OrderIndex {
+			return sortedStages[i].CreatedAt.Before(sortedStages[j].CreatedAt)
+		}
+		if sortedStages[i].OrderIndex == 0 {
+			return false
+		}
+		if sortedStages[j].OrderIndex == 0 {
+			return true
+		}
+		return sortedStages[i].OrderIndex < sortedStages[j].OrderIndex
+	})
+
+	// Group tasks by stage
+	tasksByStage := make(map[string][]models.Task)
+	unassignedTasks := []models.Task{} // Tasks not assigned to any stage
+
+	for _, task := range allTasks {
+		if task.StageID != nil {
+			tasksByStage[*task.StageID] = append(tasksByStage[*task.StageID], task)
+		} else {
+			unassignedTasks = append(unassignedTasks, task)
+		}
+	}
+
+	// Sort tasks within each stage by creation time
+	for stageID := range tasksByStage {
+		sort.SliceStable(tasksByStage[stageID], func(i, j int) bool {
+			return tasksByStage[stageID][i].CreatedAt.Before(tasksByStage[stageID][j].CreatedAt)
+		})
+	}
+
+	// Sort unassigned tasks by creation time
+	sort.SliceStable(unassignedTasks, func(i, j int) bool {
+		return unassignedTasks[i].CreatedAt.Before(unassignedTasks[j].CreatedAt)
+	})
+
+	// Assign IDs sequentially starting from the current NextTaskStableID
+	project, err := s.projects.GetByID(ctx, tx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project: %w", err)
+	}
+
+	currentID := project.NextTaskStableID
+
+	// Process stages in order, then unassigned tasks
+	for _, stage := range sortedStages {
+		stageTasks := tasksByStage[stage.ID]
+		for i := range stageTasks {
+			if stageTasks[i].NumericID == 0 {
+				// Update the task with the current ID
+				stageTasks[i].NumericID = currentID
+				_, err = tx.ExecContext(ctx, `UPDATE tasks SET numeric_id = ? WHERE id = ?`, currentID, stageTasks[i].ID)
+				if err != nil {
+					return fmt.Errorf("failed to update task numeric_id: %w", err)
+				}
+				currentID++
+			} else if stageTasks[i].NumericID >= currentID {
+				// Update currentID if this task has a higher ID
+				currentID = stageTasks[i].NumericID + 1
+			}
+		}
+	}
+
+	// Process unassigned tasks
+	for i := range unassignedTasks {
+		if unassignedTasks[i].NumericID == 0 {
+			// Update the task with the current ID
+			unassignedTasks[i].NumericID = currentID
+			_, err = tx.ExecContext(ctx, `UPDATE tasks SET numeric_id = ? WHERE id = ?`, currentID, unassignedTasks[i].ID)
+			if err != nil {
+				return fmt.Errorf("failed to update task numeric_id: %w", err)
+			}
+			currentID++
+		} else if unassignedTasks[i].NumericID >= currentID {
+			// Update currentID if this task has a higher ID
+			currentID = unassignedTasks[i].NumericID + 1
+		}
+	}
+
+	// Update project's NextTaskStableID to be currentID
+	_, err = tx.ExecContext(ctx, `UPDATE projects SET next_task_stable_id = ? WHERE id = ?`, currentID, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to update project next_task_stable_id: %w", err)
+	}
+
+	return nil
+}
+
+// assignTaskStableID assigns a stable numeric ID to a task if it doesn't have one
+// Uses the project's NextTaskStableID counter and increments it
+func (s *ProjectService) assignTaskStableID(ctx context.Context, tx *sql.Tx, task *models.Task, projectID string) error {
+	// Get the project to access its NextTaskStableID
+	project, err := s.projects.GetByID(ctx, tx, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project for assigning stable ID: %w", err)
+	}
+
+	// If task already has a NumericID, don't change it
+	if task.NumericID != 0 {
+		return nil
+	}
+
+	// Assign the current NextTaskStableID to the task
+	task.NumericID = project.NextTaskStableID
+
+	// Increment the project's NextTaskStableID
+	nextID := project.NextTaskStableID + 1
+	_, err = tx.ExecContext(ctx, `UPDATE projects SET next_task_stable_id = ? WHERE id = ?`, nextID, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to update project next_task_stable_id: %w", err)
+	}
+
+	return nil
 }

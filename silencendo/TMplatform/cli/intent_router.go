@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -110,6 +111,19 @@ func (r *IntentRouter) Route(ctx context.Context, input string, resolved *Resolv
 		return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: &projectMatch, Resolved: resolved}
 	}
 
+	// Check if this looks like an assignment command that should be handled by project handler
+	inputLower := strings.ToLower(normalized)
+	if strings.Contains(inputLower, "assign") && (strings.Contains(normalized, "#") || regexp.MustCompile(`\d+\s*-\s*\d+`).MatchString(normalized) || strings.Contains(inputLower, "task") || strings.Contains(inputLower, "stage")) {
+		projectMatch := chatbot.DetectIntent(normalized)
+		if projectMatch.Intent == chatbot.IntentAssignResponsible {
+			conf := projectMatch.Confidence
+			if conf == 0 {
+				conf = 0.8 // High confidence for clear assignment commands
+			}
+			return IntentResult{Type: IntentProject, Confidence: conf, ProjectMatch: &projectMatch, Resolved: resolved}
+		}
+	}
+
 	intentFn := r.detectIntent
 	if intentFn == nil {
 		intentFn = func(string) string { return "question" }
@@ -175,6 +189,9 @@ func (r *IntentRouter) classifyProjectWithDeepSeek(ctx context.Context, input st
 	if match.Intent == chatbot.IntentUnknown {
 		return nil, 0, errors.New("project intent unknown")
 	}
+
+	// The match from DetectIntent (line 171) now includes rule-based fallback when LLM doesn't provide complete info
+	// So we don't need additional rule-based parsing here - it's already handled in DetectIntent
 
 	if match.Confidence < conf {
 		match.Confidence = conf

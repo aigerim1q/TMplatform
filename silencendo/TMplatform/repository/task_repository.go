@@ -22,9 +22,9 @@ func (r *TaskRepository) Create(ctx context.Context, tx *sql.Tx, task models.Tas
 		return models.Task{}, fmt.Errorf("transaction required")
 	}
 
-	_, err := tx.ExecContext(ctx, `INSERT INTO tasks (id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		task.ID, task.ProjectID, task.StageID, task.Title, task.NormalizedTitle, task.Description, task.Status, task.Priority, task.AssigneeID, task.DueDate)
+	_, err := tx.ExecContext(ctx, `INSERT INTO tasks (id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, numeric_id)
+	       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		task.ID, task.ProjectID, task.StageID, task.Title, task.NormalizedTitle, task.Description, task.Status, task.Priority, task.AssigneeID, task.DueDate, task.NumericID)
 	if err != nil {
 		return models.Task{}, fmt.Errorf("create task: %w", err)
 	}
@@ -39,9 +39,10 @@ func (r *TaskRepository) GetByID(ctx context.Context, tx *sql.Tx, id string) (mo
 	var stageID sql.NullString
 	var assigneeID sql.NullString
 	var due sql.NullTime
+	var numericID sql.NullInt64
 
-	err := tx.QueryRowContext(ctx, `SELECT id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, created_at, updated_at FROM tasks WHERE id=?`, id).Scan(
-		&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt,
+	err := tx.QueryRowContext(ctx, `SELECT id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, created_at, updated_at, numeric_id FROM tasks WHERE id=?`, id).Scan(
+		&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt, &numericID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -60,6 +61,11 @@ func (r *TaskRepository) GetByID(ctx context.Context, tx *sql.Tx, id string) (mo
 	if due.Valid {
 		t.DueDate = &due.Time
 	}
+	if numericID.Valid {
+		t.NumericID = numericID.Int64
+	} else {
+		t.NumericID = 0 // Default to 0 if not set
+	}
 	return t, nil
 }
 
@@ -71,9 +77,10 @@ func (r *TaskRepository) GetByProjectAndNormalizedTitle(ctx context.Context, tx 
 	var stageID sql.NullString
 	var assigneeID sql.NullString
 	var due sql.NullTime
-	err := tx.QueryRowContext(ctx, `SELECT id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, created_at, updated_at
-        FROM tasks WHERE project_id=? AND normalized_title=?`, projectID, normalized).Scan(
-		&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt,
+	var numericID sql.NullInt64
+	err := tx.QueryRowContext(ctx, `SELECT id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, created_at, updated_at, numeric_id
+	       FROM tasks WHERE project_id=? AND normalized_title=?`, projectID, normalized).Scan(
+		&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt, &numericID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -91,6 +98,11 @@ func (r *TaskRepository) GetByProjectAndNormalizedTitle(ctx context.Context, tx 
 	}
 	if due.Valid {
 		t.DueDate = &due.Time
+	}
+	if numericID.Valid {
+		t.NumericID = numericID.Int64
+	} else {
+		t.NumericID = 0 // Default to 0 if not set
 	}
 	return t, nil
 }
@@ -122,8 +134,8 @@ func (r *TaskRepository) ListByProject(ctx context.Context, tx *sql.Tx, projectI
 		return nil, fmt.Errorf("transaction required")
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, created_at, updated_at
-        FROM tasks WHERE project_id=? ORDER BY created_at ASC`, projectID)
+	rows, err := tx.QueryContext(ctx, `SELECT id, project_id, stage_id, title, normalized_title, description, status, priority, assignee_id, due_date, created_at, updated_at, numeric_id
+	       FROM tasks WHERE project_id=? ORDER BY created_at ASC`, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
 	}
@@ -135,7 +147,8 @@ func (r *TaskRepository) ListByProject(ctx context.Context, tx *sql.Tx, projectI
 		var stageID sql.NullString
 		var assigneeID sql.NullString
 		var due sql.NullTime
-		if err := rows.Scan(&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		var numericID sql.NullInt64
+		if err := rows.Scan(&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt, &numericID); err != nil {
 			return nil, fmt.Errorf("scan task: %w", err)
 		}
 		if stageID.Valid {
@@ -148,6 +161,11 @@ func (r *TaskRepository) ListByProject(ctx context.Context, tx *sql.Tx, projectI
 		}
 		if due.Valid {
 			t.DueDate = &due.Time
+		}
+		if numericID.Valid {
+			t.NumericID = numericID.Int64
+		} else {
+			t.NumericID = 0 // Default to 0 if not set
 		}
 		tasks = append(tasks, t)
 	}
@@ -163,14 +181,15 @@ func (r *TaskRepository) FindForUserByTitle(ctx context.Context, tx *sql.Tx, use
 	var stageID sql.NullString
 	var assigneeID sql.NullString
 	var due sql.NullTime
+	var numericID sql.NullInt64
 
-	err := tx.QueryRowContext(ctx, `SELECT t.id, t.project_id, t.stage_id, t.title, t.normalized_title, t.description, t.status, t.priority, t.assignee_id, t.due_date, t.created_at, t.updated_at
-            FROM tasks t
-            JOIN projects p ON p.id = t.project_id
-            JOIN project_members pm ON pm.project_id = p.id
-            WHERE pm.user_id = ? AND t.normalized_title = ?
-            LIMIT 1`, userID, normalized).Scan(
-		&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt,
+	err := tx.QueryRowContext(ctx, `SELECT t.id, t.project_id, t.stage_id, t.title, t.normalized_title, t.description, t.status, t.priority, t.assignee_id, t.due_date, t.created_at, t.updated_at, t.numeric_id
+	           FROM tasks t
+	           JOIN projects p ON p.id = t.project_id
+	           JOIN project_members pm ON pm.project_id = p.id
+	           WHERE pm.user_id = ? AND t.normalized_title = ?
+	           LIMIT 1`, userID, normalized).Scan(
+		&t.ID, &t.ProjectID, &stageID, &t.Title, &t.NormalizedTitle, &t.Description, &t.Status, &t.Priority, &assigneeID, &due, &t.CreatedAt, &t.UpdatedAt, &numericID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -188,6 +207,11 @@ func (r *TaskRepository) FindForUserByTitle(ctx context.Context, tx *sql.Tx, use
 	}
 	if due.Valid {
 		t.DueDate = &due.Time
+	}
+	if numericID.Valid {
+		t.NumericID = numericID.Int64
+	} else {
+		t.NumericID = 0 // Default to 0 if not set
 	}
 	return t, nil
 }

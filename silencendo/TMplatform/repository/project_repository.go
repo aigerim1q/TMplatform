@@ -23,8 +23,8 @@ func (r *ProjectRepository) Create(ctx context.Context, tx *sql.Tx, p models.Pro
 		return models.Project{}, fmt.Errorf("transaction required")
 	}
 
-	_, err := tx.ExecContext(ctx, `INSERT INTO projects (id, owner_id, title, description, status, normalized_title)
-        VALUES (?, ?, ?, ?, ?, ?)`, p.ID, p.OwnerID, p.Title, p.Description, p.Status, p.NormalizedTitle)
+	_, err := tx.ExecContext(ctx, `INSERT INTO projects (id, owner_id, title, description, status, normalized_title, next_task_stable_id)
+	       VALUES (?, ?, ?, ?, ?, ?, ?)`, p.ID, p.OwnerID, p.Title, p.Description, p.Status, p.NormalizedTitle, p.NextTaskStableID)
 	if err != nil {
 		return models.Project{}, fmt.Errorf("create project: %w", err)
 	}
@@ -37,9 +37,9 @@ func (r *ProjectRepository) GetByID(ctx context.Context, tx *sql.Tx, id string) 
 	}
 
 	var p models.Project
-	err := tx.QueryRowContext(ctx, `SELECT id, owner_id, title, description, status, normalized_title, deleted_at, created_at, updated_at
-        FROM projects WHERE id=? AND deleted_at IS NULL`, id).Scan(
-		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt,
+	err := tx.QueryRowContext(ctx, `SELECT id, owner_id, title, description, status, normalized_title, COALESCE(next_task_stable_id, 1) as next_task_stable_id, deleted_at, created_at, updated_at
+	       FROM projects WHERE id=? AND deleted_at IS NULL`, id).Scan(
+		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.NextTaskStableID, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -56,9 +56,9 @@ func (r *ProjectRepository) GetByOwnerAndNormalizedTitle(ctx context.Context, tx
 	}
 
 	var p models.Project
-	err := tx.QueryRowContext(ctx, `SELECT id, owner_id, title, description, status, normalized_title, deleted_at, created_at, updated_at
-        FROM projects WHERE owner_id=? AND normalized_title=? AND deleted_at IS NULL`, ownerID, normalized).Scan(
-		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt,
+	err := tx.QueryRowContext(ctx, `SELECT id, owner_id, title, description, status, normalized_title, COALESCE(next_task_stable_id, 1) as next_task_stable_id, deleted_at, created_at, updated_at
+	       FROM projects WHERE owner_id=? AND normalized_title=? AND deleted_at IS NULL`, ownerID, normalized).Scan(
+		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.NextTaskStableID, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -80,7 +80,7 @@ func (r *ProjectRepository) ListByUser(ctx context.Context, tx *sql.Tx, userID, 
 		like = "%" + strings.ToLower(strings.TrimSpace(search)) + "%"
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT p.id, p.owner_id, p.title, p.description, p.status, p.normalized_title, p.deleted_at, p.created_at, p.updated_at
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT p.id, p.owner_id, p.title, p.description, p.status, p.normalized_title, COALESCE(p.next_task_stable_id, 1) as next_task_stable_id, p.deleted_at, p.created_at, p.updated_at
 		FROM projects p
 		JOIN project_members pm ON pm.project_id = p.id
 		WHERE pm.user_id = ? AND p.deleted_at IS NULL AND (? = '%' OR p.normalized_title LIKE ?)
@@ -94,8 +94,14 @@ func (r *ProjectRepository) ListByUser(ctx context.Context, tx *sql.Tx, userID, 
 	var projects []models.Project
 	for rows.Next() {
 		var p models.Project
-		if err := rows.Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		var nextTaskStableID sql.NullInt64
+		if err := rows.Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &nextTaskStableID, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan project: %w", err)
+		}
+		if nextTaskStableID.Valid {
+			p.NextTaskStableID = nextTaskStableID.Int64
+		} else {
+			p.NextTaskStableID = 1 // Default value
 		}
 		projects = append(projects, p)
 	}
@@ -108,7 +114,7 @@ func (r *ProjectRepository) ListActiveByUser(ctx context.Context, tx *sql.Tx, us
 		return nil, fmt.Errorf("transaction required")
 	}
 
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT p.id, p.owner_id, p.title, p.description, p.status, p.normalized_title, p.deleted_at, p.created_at, p.updated_at
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT p.id, p.owner_id, p.title, p.description, p.status, p.normalized_title, COALESCE(p.next_task_stable_id, 1) as next_task_stable_id, p.deleted_at, p.created_at, p.updated_at
 		FROM projects p
 		JOIN project_members pm ON pm.project_id = p.id
 		WHERE pm.user_id = ? AND p.status = 'active' AND p.deleted_at IS NULL
@@ -121,8 +127,14 @@ func (r *ProjectRepository) ListActiveByUser(ctx context.Context, tx *sql.Tx, us
 	var projects []models.Project
 	for rows.Next() {
 		var p models.Project
-		if err := rows.Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		var nextTaskStableID sql.NullInt64
+		if err := rows.Scan(&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &nextTaskStableID, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan active project: %w", err)
+		}
+		if nextTaskStableID.Valid {
+			p.NextTaskStableID = nextTaskStableID.Int64
+		} else {
+			p.NextTaskStableID = 1 // Default value
 		}
 		projects = append(projects, p)
 	}
@@ -161,12 +173,12 @@ func (r *ProjectRepository) FindByUserAndNormalizedTitle(ctx context.Context, tx
 	}
 
 	var p models.Project
-	err := tx.QueryRowContext(ctx, `SELECT p.id, p.owner_id, p.title, p.description, p.status, p.normalized_title, p.deleted_at, p.created_at, p.updated_at
-        FROM projects p
-        JOIN project_members pm ON pm.project_id = p.id
-        WHERE pm.user_id = ? AND p.normalized_title = ? AND p.deleted_at IS NULL
-        LIMIT 1`, userID, normalized).Scan(
-		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt,
+	err := tx.QueryRowContext(ctx, `SELECT p.id, p.owner_id, p.title, p.description, p.status, p.normalized_title, COALESCE(p.next_task_stable_id, 1) as next_task_stable_id, p.deleted_at, p.created_at, p.updated_at
+	       FROM projects p
+	       JOIN project_members pm ON pm.project_id = p.id
+	       WHERE pm.user_id = ? AND p.normalized_title = ? AND p.deleted_at IS NULL
+	       LIMIT 1`, userID, normalized).Scan(
+		&p.ID, &p.OwnerID, &p.Title, &p.Description, &p.Status, &p.NormalizedTitle, &p.NextTaskStableID, &p.DeletedAt, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +35,10 @@ func (d *Dispatcher) Dispatch(ctx context.Context, input string) (bool, error) {
 
 	if d.state != nil && d.state.Pending != nil {
 		return d.handlePending(ctx, trimmed)
+	}
+
+	if d.state != nil && d.state.PendingAssign != nil {
+		return d.handlePendingAssignment(ctx, trimmed)
 	}
 
 	if d.state != nil && d.state.PendingDeletion != nil {
@@ -88,6 +93,10 @@ func (d *Dispatcher) Dispatch(ctx context.Context, input string) (bool, error) {
 
 func (d *Dispatcher) handlePending(ctx context.Context, input string) (bool, error) {
 	if d.state == nil || d.state.Pending == nil {
+		// Check for pending assignment if no other pending state exists
+		if d.state != nil && d.state.PendingAssign != nil {
+			return d.handlePendingAssignment(ctx, input)
+		}
 		return false, nil
 	}
 	lower := strings.ToLower(strings.TrimSpace(input))
@@ -116,6 +125,179 @@ func (d *Dispatcher) handlePending(ctx context.Context, input string) (bool, err
 
 	fmt.Println("Please reply with 1 (project), 2 (document), or 'cancel'.")
 	return false, nil
+}
+
+// handlePendingAssignment handles responses to assignment clarification questions
+func (d *Dispatcher) handlePendingAssignment(ctx context.Context, input string) (bool, error) {
+	if d.state == nil || d.state.PendingAssign == nil {
+		return false, nil
+	}
+
+	pending := d.state.PendingAssign
+
+	// Parse the input for task references and assignees
+	taskStableID, taskPosStage, taskPosIndex := parseTaskReference(input)
+
+	// Parse assignees if needed
+	var assignees []string
+	if pending.WaitingFor == "assignees" {
+		assignees = parseAssigneesFromInput(input)
+	} else {
+		assignees = pending.Assignees
+	}
+
+	// Update the pending assignment with parsed data
+	if taskStableID != 0 {
+		pending.TaskStableID = taskStableID
+	}
+	if taskPosStage != 0 && taskPosIndex != 0 {
+		pending.TaskPosStage = taskPosStage
+		pending.TaskPosIndex = taskPosIndex
+	}
+	if len(assignees) > 0 {
+		pending.Assignees = assignees
+	}
+
+	// Check if the assignment is now complete
+	if (len(pending.Assignees) > 0 && (pending.TaskStableID != 0 || (pending.TaskPosStage != 0 && pending.TaskPosIndex != 0))) ||
+		(pending.WaitingFor == "assignees" && len(pending.Assignees) > 0) ||
+		(pending.WaitingFor == "task_ref" && (pending.TaskStableID != 0 || (pending.TaskPosStage != 0 && pending.TaskPosIndex != 0))) {
+
+		// Execute the assignment
+		err := d.executePendingAssignment(ctx, pending)
+		if err != nil {
+			fmt.Printf("Error executing assignment: %v\n", err)
+			d.state.PendingAssign = nil
+			return false, err
+		}
+
+		// Clear the pending assignment
+		d.state.PendingAssign = nil
+		return false, nil
+	}
+
+	// If still not complete, ask for the missing piece
+	if pending.WaitingFor == "assignees" {
+		if pending.TaskStableID != 0 {
+			fmt.Printf("Who should I assign to task #%d?\n", pending.TaskStableID)
+		} else if pending.TaskPosStage != 0 && pending.TaskPosIndex != 0 {
+			fmt.Printf("Who should I assign to task %d-%d?\n", pending.TaskPosStage, pending.TaskPosIndex)
+		} else {
+			fmt.Println("Who should I assign to which task?")
+		}
+	} else { // waiting for task reference
+		fmt.Println("Which task should I assign them to? Use task 4-2 or #8.")
+	}
+
+	return false, nil
+}
+
+// parseTaskReference extracts task references from input
+func parseTaskReference(input string) (int64, int, int) {
+	// Match stable ID: #\s*(\d+)
+	stableIDRegex := regexp.MustCompile(`#\s*(\d+)`)
+	stableMatches := stableIDRegex.FindStringSubmatch(input)
+	if len(stableMatches) >= 2 {
+		if id, err := strconv.ParseInt(stableMatches[1], 10, 64); err == nil {
+			return id, 0, 0
+		}
+	}
+
+	// Match positional: (\d+)\s*-\s*(\d+)
+	posRegex := regexp.MustCompile(`(\d+)\s*-\s*(\d+)`)
+	posMatches := posRegex.FindStringSubmatch(input)
+	if len(posMatches) >= 3 {
+		if stage, err := strconv.Atoi(posMatches[1]); err == nil {
+			if index, err := strconv.Atoi(posMatches[2]); err == nil {
+				return 0, stage, index
+			}
+		}
+	}
+
+	return 0, 0, 0
+}
+
+// parseAssigneesFromInput parses assignees from input text
+func parseAssigneesFromInput(input string) []string {
+	text := strings.TrimSpace(input)
+
+	// Remove common words that aren't assignees
+	// Check if input starts with common assignment words and remove them
+	lowerText := strings.ToLower(text)
+	if strings.HasPrefix(lowerText, "assign") || strings.HasPrefix(lowerText, "make") ||
+		strings.HasPrefix(lowerText, "let") || strings.HasPrefix(lowerText, "put") ||
+		strings.HasPrefix(lowerText, "get") || strings.HasPrefix(lowerText, "have") ||
+		strings.HasPrefix(lowerText, "add") {
+		// Extract assignees after the verb
+		parts := strings.SplitN(lowerText, " ", 2)
+		if len(parts) > 1 {
+			text = parts[1]
+		}
+	}
+
+	// Split by "and" and "," to get multiple assignees
+	text = strings.ReplaceAll(text, " and ", ",")
+	text = strings.ReplaceAll(text, " & ", ",")
+	text = strings.ReplaceAll(text, " + ", ",")
+
+	assigneeParts := strings.FieldsFunc(text, func(r rune) bool {
+		return r == ','
+	})
+
+	var assignees []string
+	for _, part := range assigneeParts {
+		cleanPart := strings.TrimSpace(part)
+		// Filter out empty strings and common non-name words
+		if cleanPart != "" && cleanPart != "to" && cleanPart != "the" && cleanPart != "a" && cleanPart != "an" {
+			assignees = append(assignees, cleanPart)
+		}
+	}
+
+	return assignees
+}
+
+// executePendingAssignment executes the assignment based on the pending assignment data
+func (d *Dispatcher) executePendingAssignment(ctx context.Context, pending *PendingAssign) error {
+	if d.projectHandler == nil {
+		return fmt.Errorf("project handler not available")
+	}
+
+	// Build a fake input string to pass to the handler for processing
+	var entityName string
+	if pending.TaskStableID != 0 {
+		entityName = fmt.Sprintf("#%d", pending.TaskStableID)
+	} else if pending.TaskPosStage != 0 && pending.TaskPosIndex != 0 {
+		entityName = fmt.Sprintf("%d-%d", pending.TaskPosStage, pending.TaskPosIndex)
+	} else {
+		return fmt.Errorf("no task reference provided")
+	}
+
+	// Combine assignees into a single string
+	assigneeStr := strings.Join(pending.Assignees, " and ")
+
+	// Create a temporary context with the resolved project
+	ctxWithProject := chatbot.WithResolvedProject(ctx, pending.ProjectID, pending.ProjectTitle)
+
+	// Create an intent match for the assignment
+	match := chatbot.IntentMatch{
+		Intent:       chatbot.IntentAssignResponsible,
+		EntityType:   "task",
+		EntityName:   entityName,
+		AssigneeName: assigneeStr,
+		Confidence:   0.9,
+	}
+
+	// Execute the assignment via the project handler
+	handled, reply, err := d.projectHandler.HandleWithMatch(ctxWithProject, match)
+	if err != nil {
+		return err
+	}
+
+	if handled && reply != "" {
+		fmt.Println(reply)
+	}
+
+	return nil
 }
 
 func (d *Dispatcher) handlePendingDeletion(ctx context.Context, input string) (bool, error) {
@@ -169,9 +351,46 @@ func (d *Dispatcher) dispatchWithForced(ctx context.Context, input string, force
 			var reply string
 			var err error
 			if projectMatch != nil {
-				handled, reply, err = d.projectHandler.HandleWithMatch(ctx, *projectMatch)
+				// Check if this is an assignment that needs to be made pending
+				if projectMatch.Intent == chatbot.IntentAssignResponsible {
+					handled, reply, err = d.handleAssignmentWithPartialInfo(ctx, input, *projectMatch)
+				} else {
+					handled, reply, err = d.projectHandler.HandleWithMatch(ctx, *projectMatch)
+				}
 			} else {
 				handled, reply, err = d.projectHandler.Handle(ctx, input)
+
+				// Check if the handler returned a partial assignment request
+				isPartialAssignment := reply == "Which task? Use task 4-2 or #8." ||
+					reply == "Which task should I assign them to? Use task 4-2 or #8." ||
+					reply == "Who should I assign to task #?" ||
+					strings.Contains(reply, "Who should I assign to task #") ||
+					strings.Contains(reply, "Could you clarify who you want to assign to what task or stage") ||
+					strings.Contains(reply, "Which task should I assign them to") ||
+					strings.Contains(reply, "who you want to assign to what task or stage") ||
+					(strings.Contains(strings.ToLower(input), "assign") && strings.Contains(strings.ToLower(input), "#") && strings.Contains(reply, "clarify who you want to assign"))
+
+				if handled && isPartialAssignment {
+
+					// Parse the input to extract assignees
+					assignees := parseAssigneesFromInput(input)
+					if len(assignees) > 0 {
+						// Create a pending assignment for task reference
+						if d.state != nil {
+							id, title, ok := chatbot.ResolvedProjectFromCtx(ctx)
+							if ok {
+								d.state.PendingAssign = &PendingAssign{
+									Assignees:    assignees,
+									WaitingFor:   "task_ref",
+									ProjectID:    id,
+									ProjectTitle: title,
+								}
+							}
+						}
+						fmt.Println(reply)
+						return false, nil
+					}
+				}
 			}
 			if handled {
 				if err != nil {
@@ -213,6 +432,99 @@ func (d *Dispatcher) dispatchWithForced(ctx context.Context, input string, force
 	default:
 		return false, nil
 	}
+}
+
+// handleAssignmentWithPartialInfo checks if the assignment has partial information and creates a pending assignment if needed
+func (d *Dispatcher) handleAssignmentWithPartialInfo(ctx context.Context, input string, match chatbot.IntentMatch) (bool, string, error) {
+	entityName := strings.TrimSpace(match.EntityName)
+	assigneeName := strings.TrimSpace(match.AssigneeName)
+
+	// Check if we have partial information that requires clarification
+	if entityName == "" || assigneeName == "" {
+		if d.state != nil {
+			id, title, ok := chatbot.ResolvedProjectFromCtx(ctx)
+			if ok {
+				// Determine what information is missing
+				if entityName == "" && assigneeName != "" {
+					// Missing task reference but have assignees - split assignees if needed
+					assigneeNames := []string{assigneeName} // Start with single assignee
+					if strings.Contains(assigneeName, " and ") || strings.Contains(assigneeName, ",") {
+						// Split by " and " or "," to get multiple assignees
+						assigneeNames = strings.Split(assigneeName, " and ")
+						// Further split by comma if present
+						var allNames []string
+						for _, nameGroup := range assigneeNames {
+							names := strings.Split(nameGroup, ",")
+							for _, name := range names {
+								trimmed := strings.TrimSpace(name)
+								if trimmed != "" {
+									allNames = append(allNames, trimmed)
+								}
+							}
+						}
+						assigneeNames = allNames
+					}
+
+					// Create pending assignment waiting for task reference
+					d.state.PendingAssign = &PendingAssign{
+						Assignees:    assigneeNames,
+						WaitingFor:   "task_ref",
+						ProjectID:    id,
+						ProjectTitle: title,
+					}
+
+					return true, "Which task should I assign them to? Use task 4-2 or #8.", nil
+				} else if assigneeName == "" && entityName != "" {
+					// Missing assignees but have task reference
+					var stableID int64
+					var posStage, posIndex int
+
+					// Try to parse the entity name for task reference
+					stableIDRegex := regexp.MustCompile(`#\s*(\d+)`)
+					stableMatches := stableIDRegex.FindStringSubmatch(entityName)
+					if len(stableMatches) >= 2 {
+						if id, err := strconv.ParseInt(stableMatches[1], 10, 64); err == nil {
+							stableID = id
+						}
+					}
+
+					// Also check for positional format
+					posRegex := regexp.MustCompile(`(\d+)\s*-\s*(\d+)`)
+					posMatches := posRegex.FindStringSubmatch(entityName)
+					if len(posMatches) >= 3 {
+						if stage, err := strconv.Atoi(posMatches[1]); err == nil {
+							if index, err := strconv.Atoi(posMatches[2]); err == nil {
+								posStage = stage
+								posIndex = index
+							}
+						}
+					}
+
+					// Create pending assignment waiting for assignees
+					d.state.PendingAssign = &PendingAssign{
+						TaskStableID: stableID,
+						TaskPosStage: posStage,
+						TaskPosIndex: posIndex,
+						WaitingFor:   "assignees",
+						ProjectID:    id,
+						ProjectTitle: title,
+					}
+
+					// Generate appropriate message based on task reference type
+					if stableID != 0 {
+						return true, fmt.Sprintf("Who should I assign to task #%d?", stableID), nil
+					} else if posStage != 0 && posIndex != 0 {
+						return true, fmt.Sprintf("Who should I assign to task %d-%d?", posStage, posIndex), nil
+					} else {
+						return true, "Who should I assign to which task?", nil
+					}
+				}
+			}
+		}
+	}
+
+	// If we have complete information, just delegate to the handler
+	return d.projectHandler.HandleWithMatch(ctx, match)
 }
 
 func (d *Dispatcher) handleSlashCommand(ctx context.Context, input string) (bool, error) {
@@ -274,7 +586,19 @@ func (d *Dispatcher) handleProjectSlashCommand(ctx context.Context, args []strin
 		return d.selectActiveProject(ctx, target)
 	case "current", "active", "текущий", "активный":
 		if d.state != nil && strings.TrimSpace(d.state.ActiveProjectID) != "" {
-			fmt.Println(d.describeCurrentProject())
+			// Instead of just showing the project name, show the full project details like show_project intent
+			ctxWithProject := chatbot.WithResolvedProject(ctx, strings.TrimSpace(d.state.ActiveProjectID), strings.TrimSpace(d.state.ActiveProjectTitle))
+			handled, reply, err := d.projectHandler.Handle(ctxWithProject, "show project")
+			if handled {
+				if err != nil {
+					fmt.Printf("Error: %v\n", err)
+				} else if strings.TrimSpace(reply) != "" {
+					fmt.Println(reply)
+				}
+			} else {
+				// Fallback to just showing the project name
+				fmt.Println(d.describeCurrentProject())
+			}
 			return nil
 		}
 		fmt.Println(noActiveProjectMessage())

@@ -28,6 +28,17 @@ type PendingDeletion struct {
 	ProjectTitle string
 }
 
+// PendingAssign represents a pending assignment operation waiting for clarification.
+type PendingAssign struct {
+	Assignees    []string
+	TaskStableID int64
+	TaskPosStage int
+	TaskPosIndex int
+	WaitingFor   string // "assignees" or "task_ref"
+	ProjectID    string
+	ProjectTitle string
+}
+
 // SessionState stores lightweight, in-memory session data for the CLI.
 type SessionState struct {
 	Pending            *PendingConfirmation
@@ -35,6 +46,7 @@ type SessionState struct {
 	ActiveProjectTitle string
 	LastProjectList    []ProjectSummary
 	PendingDeletion    *PendingDeletion
+	PendingAssign      *PendingAssign
 }
 
 func NewSessionState() *SessionState {

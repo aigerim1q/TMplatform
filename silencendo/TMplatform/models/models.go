@@ -13,15 +13,16 @@ type User struct {
 
 // Project represents a container for stages and tasks.
 type Project struct {
-	ID              string
-	OwnerID         string
-	Title           string
-	Description     string
-	Status          string
-	NormalizedTitle string
-	DeletedAt       *time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID               string
+	OwnerID          string
+	Title            string
+	Description      string
+	Status           string
+	NormalizedTitle  string
+	NextTaskStableID int64 // Counter for the next stable ID to assign to new tasks
+	DeletedAt        *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // Stage represents a project stage.
@@ -50,6 +51,7 @@ type Task struct {
 	DueDate         *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	NumericID       int64 // Stable numeric ID for referencing tasks
 }
 
 // ProjectDetails aggregates a project with its nested data for read APIs.

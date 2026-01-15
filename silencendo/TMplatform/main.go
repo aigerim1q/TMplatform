@@ -12,6 +12,8 @@ import (
 	"silencendo/chatbot"
 	"silencendo/cli"
 	"silencendo/db"
+	router "silencendo/intent_router"
+	"silencendo/llm"
 	"silencendo/models"
 	"silencendo/services"
 )
@@ -42,10 +44,17 @@ func main() {
 	projectService := services.NewProjectService(dbConn)
 	projectHandler := chatbot.NewHandler(projectService, actor)
 
+	// Initialize the LLM router and set it globally
+	llmClient := llm.CreateLLMClient()
+	if llmClient != nil {
+		llmRouter := router.New(llmClient)
+		chatbot.SetGlobalRouter(llmRouter)
+	}
+
 	state := cli.NewSessionState()
 	cliInterface := cli.NewCLIInterface()
-	router := cli.NewIntentRouter(cliInterface.SourceManager(), cliInterface.IntentDetector())
-	dispatcher := cli.NewDispatcher(router, projectHandler, cliInterface, state)
+	cliRouter := cli.NewIntentRouter(cliInterface.SourceManager(), cliInterface.IntentDetector())
+	dispatcher := cli.NewDispatcher(cliRouter, projectHandler, cliInterface, state)
 	repl := cli.NewUnifiedRepl(dispatcher)
 
 	if err := repl.Start(context.Background(), os.Stdin); err != nil {
