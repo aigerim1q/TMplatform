@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Видеозвонок</title>
+  <link rel="stylesheet" href="video.css" />
+</head>
+<body>
+
+
+  <button id="startCallBtn" class="primary-btn">
+    Начать звонок
+  </button>
+
+ 
+  <div id="callModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Видеозвонок</h3>
+        <button id="closeModalBtn" class="close-btn">✕</button>
+      </div>
+
+      <div id="jitsiContainer"></div>
+    
+
+      <div class="modal-footer">
+        <button id="inviteBtn" class="secondary-btn">
+          Пригласить
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="https://meet.jit.si/external_api.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>UI Cards</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #eef2ff;
+            display: flex;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .page {
+            display: flex;
+            flex-direction: column;
+            gap: 60px;
+            padding: 60px 0;
+        }
+
+        /* ================= COMMENT CARD ================= */
+
+        .comment-card {
+            width: 900px;
+            background: #f9fafb;
+            border-radius: 24px;
+            padding: 28px 32px 32px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .user {
+            display: flex;
+            gap: 16px;
+        }
+
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .name {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .sub {
+            color: #6b7280;
+            font-size: 16px;
+            margin-top: 4px;
+        }
+
+        .right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: #9ca3af;
+            font-size: 16px;
+        }
+
+        .right img {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+        }
+
+        .file {
+            margin: 20px 0 26px 72px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .file img {
+            width: 22px;
+            height: 22px;
+        }
+
+        .comment {
+            margin-left: 72px;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 28px 32px;
+            font-size: 26px;
+            line-height: 1.4;
+            color: #1f2937;
+            border: 1px solid #e5e7eb;
+        }
+
+        .comment-actions {
+            margin-top: 28px;
+            margin-left: 72px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 28px;
+            border-radius: 18px;
+            font-size: 20px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn img {
+            width: 24px;
+            height: 24px;
+        }
+
+        .btn.primary {
+            background: #3b82f6;
+            color: #fff;
+            box-shadow: 0 15px 35px rgba(59,130,246,0.35);
+        }
+
+        .btn.secondary {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        /* ================= TASK CARD ================= */
+
+        .task-card {
+            width: 820px;
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px 36px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            font-size: 22px;
+            color: #999;
+            cursor: pointer;
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #3b82f6;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+        }
+
+        .time {
+            margin-top: 4px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        h1 {
+            margin: 24px 0 20px;
+            font-size: 40px;
+            font-weight: 700;
+        }
+
+        .badges {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            font-weight: 500;
+            color: #334155;
+        }
+
+        .badge img {
+            width: 18px;
+            height: 18px;
+        }
+
+        .divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 28px 0;
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .person {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .label {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .task-actions {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn-task {
+            padding: 18px 28px;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-task img {
+            width: 22px;
+            height: 22px;
+        }
+
+        .btn-task.secondary {
+            background: #f1f5f9;
+            color: #111;
+        }
+
+        .btn-task.primary {
+            background: #3b82f6;
+            color: #fff;
+            width: 260px;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(59,130,246,0.35);
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+
+    <!-- COMMENT CARD -->
+    <div class="comment-card">
+        <div class="comment-header">
+            <div class="user">
+                <img src="image copy 27.png" class="avatar">
+                <div>
+                    <div class="name">Айдын Рахимбаев <span style="font-weight:400;color:#6b7280;">оставил комментарий</span></div>
+                    <div class="sub">2 мин. назад</div>
+                </div>
+            </div>
+
+            <div class="right">
+                <img src="image copy 29.png">
+                <img src="image copy 30.png">
+            </div>
+        </div>
+
+        <div class="file">
+            <img src="image copy 31.png">
+            План на 3 квартал
+        </div>
+
+        <div class="comment">
+            Всем привет, предлагаю изменить порядок этапов, чтобы сократить простой техники.
+            Также прошу ускорить выполнение данного этапа.
+        </div>
+
+        <div class="comment-actions">
+            <button class="btn primary">
+                <img src="image copy 32.png">
+                Ответить
+            </button>
+
+            <button class="btn secondary">
+                <img src="image copy 33.png">
+                Прочитано
+            </button>
+        </div>
+    </div>
+
+    <!-- TASK CARD -->
+    <div class="task-card">
+        <div class="close">×</div>
+
+        <div class="top">
+            <img src="image copy 21.png" class="dot">
+            НОВАЯ ЗАДАЧА
+        </div>
+        <div class="time">Только что</div>
+
+        <h1>Обзор дизайна главной страницы</h1>
+
+        <div class="badges">
+            <div class="badge">
+                <img src="image copy 22.png">
+                Срок: Завтра, 16:00
+            </div>
+            <div class="badge">
+                <img src="image copy 23.png">
+                Высокий приоритет
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="info">
+            <div>
+                <div class="label">Исполнитель</div>
+                <div class="person">
+                    <img src="image copy 24.png" class="avatar">
+                    <div class="value">Омар Ахмет</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="label">Проект</div>
+                <div class="value">Редизайн UI</div>
+            </div>
+        </div>
+
+        <div class="task-actions">
+            <button class="btn-task secondary">
+                <img src="image copy 25.png">
+                Отложить
+            </button>
+
+            <button class="btn-task primary">
+                <img src="image copy 26.png">
+                Открыть
+            </button>
+        </div>
+    </div>
+
+
+    
+
+</div>
+
+</body>
+</html>

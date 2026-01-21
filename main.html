@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>The Qurulys Group</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,sans-serif}
+body{background:#fff;color:#111;display:flex;justify-content:center}
+.page{width:100%;max-width:1200px;padding:24px}
+
+/* HEADER */
+.header-wrap{display:flex;justify-content:center;margin-bottom:24px}
+.navbar{
+  background:#3a3a3a;
+  padding:14px 30px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  gap:26px;
+}
+.logo{color:#f1d38a;font-weight:700;font-size:14px}
+.navbar a{color:#fff;text-decoration:none;font-size:14px}
+.navbar a.active{border-bottom:2px solid #fff}
+.nav-icons{display:flex;align-items:center;gap:12px}
+
+.avatar-img{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+/* HERO */
+.hero{
+  padding:40px 0;
+  display:grid;
+  grid-template-columns:1.2fr 1fr;
+  gap:40px;
+  align-items:center;
+}
+.hero h1{font-size:34px;line-height:1.25;margin-bottom:20px}
+.hero-actions{display:flex;gap:14px}
+.btn{padding:12px 20px;border-radius:14px;border:none;font-size:14px;cursor:pointer}
+.btn-green{background:#22c55e;color:#fff}
+.btn-black{background:#111;color:#fff}
+.hero img{width:100%;max-width:420px;border-radius:20px}
+
+/* TASK LIST */
+.tasks{
+  background:#f7f7f7;
+  padding:28px;
+  border-radius:22px;
+  margin:20px 0;
+}
+.tasks h2{text-align:center;font-size:18px;margin-bottom:20px}
+.task-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+
+.task-card{
+  background:#fff;
+  border-radius:16px;
+  padding:14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+}
+.task-left{display:flex;align-items:center;gap:12px}
+
+.task-avatar-img{
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.task-text{font-size:13px}
+.task-text span{display:block;color:#22c55e;font-size:12px}
+.task-icons{display:flex;gap:10px;font-size:14px}
+
+/* CONTENT EDITOR */
+.editor{padding:40px 0}
+.editor h3{font-size:20px;margin-bottom:16px}
+.editor-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.editor p{font-size:14px;line-height:1.6;color:#444}
+.quote{
+  font-size:40px;
+  color:#22c55e;
+  margin-bottom:10px;
+}
+
+/* GALLERY */
+.gallery{
+  padding:20px 0 60px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+}
+.gallery-item{
+  background:#eee;
+  border-radius:16px;
+  overflow:hidden;
+  font-size:12px;
+  text-align:center;
+}
+.gallery-item img{
+  width:100%;
+  height:120px;
+  object-fit:cover;
+}
+.gallery-item p{padding:10px}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr;text-align:center}
+  .hero-actions{justify-content:center}
+  .task-grid{grid-template-columns:1fr}
+  .editor-wrap{grid-template-columns:1fr}
+  .gallery{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header-wrap">
+  <div class="navbar">
+    <div class="logo">THE QURYLYS</div>
+    <a>Календарь</a>
+    <a>Иерархия</a>
+    <a class="active">Дашборд</a>
+    <div class="nav-icons">
+      <img src="image copy 2.png" width="30px">
+      <img class="avatar-img" src="image.png">
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div>
+    <h1>
+      The Qurulys Group — компания в сфере городского строительства и реконструкции,
+      реализующая инфраструктурные проекты в крупных мегаполисах.
+    </h1>
+
+    <div class="hero-actions">
+      <button class="btn btn-green">Написать в WhatsApp</button>
+      <button class="btn btn-black">Посмотреть рекламу</button>
+    </div>
+  </div>
+
+  <img src="Screenshot 2026-01-13 at 16.20.15.png">
+</section>
+
+<!-- TASKS -->
+<section class="tasks">
+<h2>Список подзадач</h2>
+
+<div class="task-grid">
+
+  <div class="task-card">
+    <div class="task-left">
+      <img class="task-avatar-img" src="image copy 8.png">
+      <div class="task-text">
+        Очистка территории <br>
+Разметка участка <br>
+Подготовка доступа для техники
+       
+      </div>
+    </div>
+   
+  </div>
+
+  <div class="task-card">
+    <div class="task-left">
+      <img class="task-avatar-img" src="image copy 9.png">
+      <div class="task-text">
+Рытьё котлована <br>
+Установка опалубки <br>
+Заливка бетона
+       
+      </div>
+    </div>
+   
+  </div>
+
+  <div class="task-card">
+    <div class="task-left">
+    <img src="image copy 10.png" width="400px"
+      </div>
+    </div>
+    <div class="task-icons"></div>
+  </div>
+
+ 
+</div>
+</section>
+
+<!-- CONTENT -->
+<section class="editor">
+<h3>Редактор контента</h3>
+
+<div class="editor-wrap">
+  <div>
+    <div class="quote">“</div>
+    <p>
+Отчёты о ходе строительства
+На текущий момент завершён фундамент 
+и кладка стен первого этажа. Планируется 
+установка перекрытий на следующей неделе.
+
+Инструкции для рабочих
+Перед началом кладки стен убедитесь, 
+что все материалы и инструменты готовы, 
+опалубка установлена правильно.
+    </p>
+  </div>
+
+  <div>
+    <p>
+ Общие описания проекта
+Строится жилой дом на 5 этажей
+с подземным паркингом. <br>
+Проект рассчитан на 12 месяцев.
+
+Отчёты по срокам и этапам <br>
+Этап «Возведение стен второго этажа» выполнен на 60%
+Прогнозируемое завершение — через 2 недели. 
+Задержек не выявлено.
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- GALLERY -->
+<section class="gallery">
+  <div class="gallery-item"><img src="image copy 11.png"><p>Очистка участка</p></div>
+  <div class="gallery-item"><img src="image copy 12.png"><p>Рытьё котлована</p></div>
+  <div class="gallery-item"><img src="image copy 13.png"><p>Установка опалубки</p></div>
+  <div class="gallery-item"><img src="image copy 14.png"><p>Армирование</p></div>
+  <div class="gallery-item"><img src="image copy 15.png"><p>Заливка бетона</p></div>
+  <div class="gallery-item"><img src="image copy 16.png"><p>Подготовка материалов</p></div>
+  <div class="gallery-item"><img src="image copy 17.png"><p>Установка направляющих</p></div>
+  <div class="gallery-item"><img src="image copy 18.png"><p>Кладка стен</p></div>
+</section>
+
+</div>
+</body>
+</html>

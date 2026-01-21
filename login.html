@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Вход в аккаунт | THE QURYLYS</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Inter", sans-serif;
+    }
+
+    body {
+      background: linear-gradient(180deg, #fff 40%, #f5f0ff 90%);
+      margin: 0;
+      padding: 0;
+      color: #222;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 19px 40px;
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 20px;
+      color: #6c63ff;
+    }
+    .logo span {
+      color: #b3aaff;
+    }
+
+    nav a {
+      margin: 0 12px;
+      color: #222;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .urgent {
+      background: #6c63ff;
+      color: white;
+      padding: 8px 18px;
+      border-radius: 20px;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+   .login {
+  color: #222;
+  text-decoration: none;
+  margin-left: 8px;
+  margin-top: 6px;   /* 👈 ОСЫ ҚОСТЫҚ */
+  display: inline-block;
+}
+
+
+    main {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 85vh;
+    }
+
+    .login-box {
+      background: white;
+      padding: 40px 60px;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      width: 400px;
+    }
+
+    .login-box h2 {
+      font-size: 24px;
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 40px 12px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .password-field {
+      position: relative;
+    }
+
+    /* 👁️ IMAGE */
+    .password-field img {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+
+    .password-field img:hover {
+      opacity: 1;
+    }
+
+    .options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 30px;
+    }
+
+    .options a {
+      color: #6c63ff;
+      text-decoration: none;
+    }
+
+    /* 🔽 Войти кнопка төменірек */
+    .btn {
+      width: 100%;
+      background: #6c63ff;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      margin-top: 10px; /* ОСЫ ЖЕР */
+      transition: 0.2s;
+    }
+
+    .btn:hover {
+      background: #5b54e0;
+    }
+
+    .register {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 20px;
+    }
+
+    .register a {
+      color: #6c63ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">THE<span>QURYLYS</span></div>
+  <nav>
+    <a href="#">Календарь</a>
+    <a href="#">Иерархия</a>
+    <a href="#">Дашборд</a>
+    <a href="#">Отчеты</a>
+    <a href="#">Задача</a>
+  </nav>
+  <div class="actions">
+    <a href="#" class="login">Войти</a>
+    <a href="#" class="urgent">Пометить как срочное</a>
+  </div>
+</header>
+
+<main>
+  <div class="login-box">
+    <h2>Вход в аккаунт</h2>
+
+    <form>
+      <label>Email или номер телефона</label>
+      <input type="text" placeholder="alfiya.madikyzy@jihc.edu.kz" />
+
+      <label>Пароль</label>
+      <div class="password-field">
+        <input type="password" id="password" placeholder="Пароль" />
+        <img src="image copy 40.png" id="togglePassword" alt="show password">
+      </div>
+
+      <div class="options">
+        <label><input type="checkbox" checked /> Запомнить меня</label>
+        <a href="#">Забыли пароль?</a>
+      </div>
+
+      <button type="submit" class="btn">Войти</button>
+
+      <p class="register">
+        Нет аккаунта? <a href="#">Зарегистрироваться</a>
+      </p>
+    </form>
+  </div>
+</main>
+
+<script>
+  const toggle = document.getElementById("togglePassword");
+  const password = document.getElementById("password");
+
+  toggle.addEventListener("click", () => {
+    password.type =
+      password.type === "password" ? "text" : "password";
+  });
+</script>
+
+</body>
+</html>
