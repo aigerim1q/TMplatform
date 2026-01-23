@@ -4,25 +4,11 @@
 /node_modules
 /frontend/node_modules/
 
-# build outputs
-/frontend/.next
-/frontend/out
-
-# backups
-/frontend/_backup_pre_merge/
-
-# uploads
-/uploads/
-
-# docs binaries
-*.docx
-
-# macOS
-.DS_Store
-
 # next.js
 /.next/
 /out/
+/frontend/.next/
+/frontend/out/
 
 # production
 /build
@@ -42,3 +28,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backups
+/frontend/_backup_pre_merge/
+
+# uploads
+/uploads/
+
+# docs binaries
+*.docx
+
+# macOS
+.DS_Store
