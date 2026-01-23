@@ -1,17 +1,24 @@
-
-# env
-backend/.env
+node_modules
+.next
+.turbo
+.vercel
+dist
 .env
+.env.local
+.env*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# binaries
-*.exe
-*.out
-*.bin
-
-# OS
-.DS_Store
 
 
-# env
-backend/.env
-.env
+
+
+
+
+
+
