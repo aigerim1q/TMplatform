@@ -1,212 +1,204 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import Link from "next/link";
+import { cn } from "@/lib/utils";
 
-export default function RegisterPage() {
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    agreeToTerms: false,
+type RegisterResponse = {
+  accessToken: string;
+  id?: number;
+  email?: string;
+  org_id?: number;
+  role?: string;
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+async function apiRegister(params: {
+  email: string;
+  password: string;
+  org_id: number;
+  role: string;
+}): Promise<RegisterResponse> {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignore
+  }
+
+  if (!res.ok) {
+    // бэк часто отдаёт {error:"..."} или просто текст — нормализуем
+    const msg =
+      data?.error ||
+      data?.message ||
+      (typeof data === "string" ? data : null) ||
+      `Register failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data as RegisterResponse;
+}
+
+export default function RegisterPage() {
+  const router = useRouter();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
+  const [agree, setAgree] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isValid = useMemo(() => {
+    if (!firstName.trim()) return false;
+    if (!lastName.trim()) return false;
+    if (!email.trim()) return false;
+    if (!password.trim() || password.length < 8) return false;
+    if (password !== password2) return false;
+    if (!agree) return false;
+    return true;
+  }, [firstName, lastName, email, password, password2, agree]);
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log("Form submitted:", formData);
+    setError(null);
+
+    try {
+      setLoading(true);
+
+      // ВАЖНО: бэк требует org_id и role
+      const resp = await apiRegister({
+        email: email.trim(),
+        password,
+        org_id: 1,
+        role: "admin", // если надо безопаснее — поставь "employee"
+      });
+
+      if (resp.accessToken) {
+        localStorage.setItem("accessToken", resp.accessToken);
+      }
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err?.message || "Ошибка регистрации");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white p-8">
-      <div className="flex w-full max-w-[1221px] flex-col items-center justify-center gap-[73px] lg:flex-row">
-        {/* Left Section - Logo and Features */}
-        <div className="w-full max-w-[558px] space-y-8">
-          {/* Logo */}
-          <div className="mb-8">
-            <div className="text-2xl font-bold text-[#8B6B4E]">Qurylys</div>
-          </div>
-
-          {/* Title and Description */}
-          <div className="space-y-4">
-            <h1 className="text-[37px] font-bold leading-tight text-black">
-              Управление строительными проектами
-            </h1>
-            <p className="text-lg text-[#505872] leading-relaxed">
-              Комплексная платформа для эффективного управления строительными процессами, контроля качества и координации команд.
-            </p>
-          </div>
-
-          {/* Features */}
-          <div className="space-y-6 mt-8">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 flex-shrink-0 bg-gray-100 rounded"></div>
-              <div>
-                <h3 className="text-base font-medium text-black mb-1">
-                  Аналитика проектов
-                </h3>
-                <p className="text-sm text-black">
-                  Отслеживайте процесс в реальном времени
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 flex-shrink-0 bg-gray-100 rounded"></div>
-              <div>
-                <h3 className="text-base font-medium text-black mb-1">
-                  Командная работа
-                </h3>
-                <p className="text-sm text-black">
-                  Координация всех участников проекта
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 flex-shrink-0 bg-gray-100 rounded"></div>
-              <div>
-                <h3 className="text-base font-medium text-black mb-1">
-                  Безопасность данных
-                </h3>
-                <p className="text-sm text-black">
-                  Надежная защита корпоративной информации
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Section - Registration Card */}
-        <Card className="w-full max-w-[517px] rounded-xl border-0 bg-[rgba(250,250,255,0.5)] shadow-[0px_4px_90px_0px_rgba(255,235,211,1)]">
-          <CardHeader className="space-y-4 pb-6">
-            <div className="text-center space-y-2">
-              <Link 
-                href="/login" 
-                className="text-sm font-semibold text-black hover:underline"
-              >
-                Уже есть аккаунт? Войти
+    <main className="min-h-screen bg-white text-black">
+      <div className="mx-auto flex min-h-screen max-w-[880px] items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[560px] rounded-2xl border bg-white/60 p-8 shadow-[0px_4px_90px_0px_rgba(240,230,218,1)]">
+          <div className="text-center">
+            <div className="text-sm text-[#58616F]">
+              Уже есть аккаунт?{" "}
+              <Link href="/login" className="font-medium text-[#BC915A] hover:underline">
+                Войти
               </Link>
-              <CardTitle className="text-[26px] font-semibold text-black">
-                Создать аккаунт
-              </CardTitle>
-              <CardDescription className="text-base text-[#51789E]">
-                Начните управлять проектами эффективно
-              </CardDescription>
             </div>
-          </CardHeader>
 
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name Fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Имя</Label>
-                  <Input
-                    id="firstName"
-                    placeholder="Ахмет"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, firstName: e.target.value })
-                    }
-                    className="h-12"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Фамилия</Label>
-                  <Input
-                    id="lastName"
-                    placeholder="Омар"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      setFormData({ ...formData, lastName: e.target.value })
-                    }
-                    className="h-12"
-                  />
-                </div>
-              </div>
+            <h1 className="mt-3 text-3xl font-bold">Создать аккаунт</h1>
+            <p className="mt-2 text-[#5B6D91]">Начните управлять проектами эффективно</p>
+          </div>
 
-              {/* Email */}
+          <form onSubmit={onSubmit} className="mt-8 space-y-5">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Электронная почта</Label>
+                <Label className="text-[14.5px] font-medium text-[#4C5464]">Имя</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className="h-12"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className={cn("h-[45px] rounded-[10px] border-[#E6EDF8] bg-[#F5F7FF]")}
+                  placeholder="AIGANYM"
                 />
               </div>
-
-              {/* Password */}
               <div className="space-y-2">
-                <Label htmlFor="password">Пароль</Label>
+                <Label className="text-[14.5px] font-medium text-[#4C5464]">Фамилия</Label>
                 <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  className="h-12"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className={cn("h-[45px] rounded-[10px] border-[#E6EDF8] bg-[#F5F7FF]")}
+                  placeholder="TULEBAYEVA"
                 />
               </div>
+            </div>
 
-              {/* Confirm Password */}
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) =>
-                    setFormData({ ...formData, confirmPassword: e.target.value })
-                  }
-                  className="h-12"
-                />
+            <div className="space-y-2">
+              <Label className="text-[14.5px] font-medium text-[#4C5464]">Электронная почта</Label>
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={cn("h-[45px] rounded-[10px] border-[#E6EDF8] bg-[#F5F7FF]")}
+                placeholder="you@email.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[14.5px] font-medium text-[#4C5464]">Пароль</Label>
+              <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type="password"
+                className={cn("h-[45px] rounded-[10px] border-[#FFF2E6] bg-[rgba(255,252,249,0.6)]")}
+                placeholder="Минимум 8 символов"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[14.5px] font-medium text-[#4C5464]">Подтвердите пароль</Label>
+              <Input
+                value={password2}
+                onChange={(e) => setPassword2(e.target.value)}
+                type="password"
+                className={cn("h-[45px] rounded-[10px] border-[#FFF2E6] bg-[rgba(255,252,249,0.6)]")}
+                placeholder="Повторите пароль"
+              />
+            </div>
+
+            <label className="flex items-start gap-3 text-sm text-[#58616F]">
+              <input
+                type="checkbox"
+                checked={agree}
+                onChange={(e) => setAgree(e.target.checked)}
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                Я соглашаюсь с Условиями использования и Политикой конфиденциальности.
+              </span>
+            </label>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
               </div>
+            )}
 
-              {/* Terms Checkbox */}
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id="terms"
-                  checked={formData.agreeToTerms}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, agreeToTerms: checked === true })
-                  }
-                  className="mt-1"
-                />
-                <Label
-                  htmlFor="terms"
-                  className="text-sm text-[#005088] leading-relaxed cursor-pointer"
-                >
-                  Я соглашаюсь с Условиями использования и Политикой конфиденциальность.
-                </Label>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full h-12 bg-[#C19A6B] hover:bg-[#C19A6B]/90 text-white font-semibold rounded-lg"
-              >
-                Зарегистрироваться
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            <Button
+              type="submit"
+              disabled={!isValid || loading}
+              className="h-[49px] w-full rounded-[11px] bg-[#C19A6B] text-white hover:bg-[#C19A6B]/90 disabled:opacity-60"
+            >
+              {loading ? "Регистрируем..." : "Зарегистрироваться"}
+            </Button>
+          </form>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
