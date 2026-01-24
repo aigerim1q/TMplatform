@@ -1,305 +1,370 @@
-'use client';
+"use client"
 
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { Plus, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  Plus, 
+  Maximize2,
+  Clock,
+  CheckCircle2,
+  Sparkles
+} from "lucide-react"
+import { fetchJson } from "@/lib/api"
+import StageCardWithTasks from "@/components/stage-card-tasks"
+
+type Assignee = {
+  id: number
+  name: string
+  email: string
+  role: string
+}
+
+type Project = {
+  id: number
+  name: string
+  description?: string | null
+  image_url?: string | null
+  image?: string 
+  status: string
+  start_date?: string | null
+  end_date?: string | null
+  priority?: number
+  budget_allocated: number
+  budget_spent: number
+  budget_currency: string
+  assignees: Assignee[]
+}
+
+type Stage = {
+  id: number
+  title: string
+  description?: string | null
+  status: "todo" | "in_progress" | "done"
+  start_date?: string | null
+  end_date?: string | null
+  order_index: number
+}
+
+// Mock phases for the "Design" if real grouping isn't available
+const PHASES = [
+  { id: 1, title: "I. Предпроектная подготовка (до начала проектирования)", delay: "5 дней" },
+  { id: 2, title: "II. Проектирование (архитектура, инженерия, дизайн)", delay: null },
+  { id: 3, title: "III. Строительный этап", delay: null }
+]
 
 export default function ProjectDetail() {
-  const router = useRouter();
+  const router = useRouter()
+  const params = useParams()
+  // Ensure we get a string ID safely
+  const projectId = Array.isArray(params.id) ? params.id[0] : params.id
+  
+  const [project, setProject] = useState<Project | null>(null)
+  const [stages, setStages] = useState<Stage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [stageModalOpen, setStageModalOpen] = useState(false)
+  const [stageTitle, setStageTitle] = useState("")
+  const [stageDescription, setStageDescription] = useState("")
+  const [stageSubmitting, setStageSubmitting] = useState(false)
+  const [stageError, setStageError] = useState<string | null>(null)
 
-  const projectPhases = [
-    {
-      phase: 'I. Предпроектная подготовка',
-      tasks: [
-        {
-          number: 1,
-          title: 'Инициирование проекта',
-          description: 'Определение ориентировочной площади и этажности. Анализ потребностей рынка...',
-          status: 'Выполнено',
-          statusColor: 'green',
-        },
-        {
-          number: 2,
-          title: 'Финансово-экономический анализ',
-          description: 'Прогноз стоимости строительства проекта (РСМ) и ренгабельность проекта',
-          status: 'Задержка: 5...',
-          statusColor: 'red',
-        },
-      ],
-    },
-    {
-      phase: 'II. Проектирование (архитектура, инженерия, дизайн)',
-      tasks: [
-        {
-          number: 1,
-          title: 'Архитектурная концепция',
-          description: 'Концептуальный проект зданий. Общие планы этажей. Количество квартир и их типы...',
-          status: 'Выполнено',
-          statusColor: 'green',
-        },
-        {
-          number: 2,
-          title: 'Инженерные разделы',
-          description: 'Конструкты (фундамент, колонны, плиты) Электроснабжение...',
-          status: 'Выполнено',
-          statusColor: 'green',
-        },
-        {
-          number: 3,
-          title: 'Дизайн интерьера и фас...',
-          description: 'Интерьеры подъезда и этажей. Интерьеры квартир (всех бизнес-класса)...',
-          status: 'Выполнено',
-          statusColor: 'green',
-          daysLeft: '25 дней',
-        },
-      ],
-    },
-    {
-      phase: 'III. Строительный этап',
-      tasks: [
-        {
-          number: 1,
-          title: 'Подготовка площадки',
-          description: 'Ограждение участка. Установка бытовок и складов. Организация временного...',
-          status: 'Выполнено',
-          statusColor: 'green',
-        },
-        {
-          number: 2,
-          title: 'Фундаментные работы',
-          description: 'Геодезическая разбивка. Раытье котлована. Подготовка основания...',
-          status: 'Выполнено',
-          statusColor: 'green',
-        },
-        {
-          number: 3,
-          title: 'Возведение колонн на 1 э...',
-          description: 'Интерьеры подъезда и этажей. Перед началом работ нужно провести подготовку...',
-          status: '-9 часов',
-          statusColor: 'red',
-        },
-      ],
-    },
-  ];
+  useEffect(() => {
+    async function load() {
+      if (!projectId) return
+      try {
+        const p = await fetchJson<Project>(`/projects/${projectId}`)
+        setProject(p)
+        const s = await fetchJson<Stage[]>(`/projects/${projectId}/stages`)
+        if (Array.isArray(s)) setStages(s)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [projectId])
 
-  const budgetData = {
-    allocated: 1500900000,
-    total: 2400800000,
-  };
+  if (loading || !project) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent" />
+      </div>
+    )
+  }
+
+  // Helper to distribute stages into phases roughly (for visual demo)
+  const getPhaseStages = (phaseIndex: number) => {
+    const stagesPerPhase = Math.ceil(stages.length / 3) || 1
+    if (stages.length === 0) return []
+    const start = phaseIndex * stagesPerPhase
+    return stages.slice(start, start + stagesPerPhase)
+  }
+
+  const handleCreateStage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!projectId) return
+    if (!stageTitle.trim()) {
+      setStageError("Введите название этапа")
+      return
+    }
+    try {
+      setStageSubmitting(true)
+      setStageError(null)
+      const stage = await fetchJson<Stage>(`/projects/${projectId}/stages`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: stageTitle.trim(),
+          description: stageDescription.trim() || undefined,
+        }),
+      })
+      setStages([...stages, stage])
+      setStageTitle("")
+      setStageDescription("")
+      setStageModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      setStageError("Не удалось создать этап")
+    } finally {
+      setStageSubmitting(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header - centered */}
-      <div className="flex w-screen justify-center border-b border-gray-200 bg-white py-4">
-        <header className="mx-auto w-fit rounded-full border border-gray-200 bg-white px-8 py-3 shadow-sm">
-          <div className="flex items-center justify-between gap-12">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-400 font-bold text-white text-xs">
-                THE
-              </div>
-              <span className="text-sm font-semibold text-gray-800">QURYLS</span>
-            </div>
-
-            <nav className="flex gap-8">
-              <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                Календарь
-              </a>
-              <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
-                Иерархия
-              </a>
-              <button
-                onClick={() => router.push('/')}
-                className="text-sm font-bold border-b-2 border-black text-black"
-              >
-                Дашборд
-              </button>
-              <button
-                onClick={() => router.push('/lifecycle')}
-                className="text-sm text-gray-600 hover:text-gray-900"
-              >
-                ЖЦП
-              </button>
-            </nav>
-
-            <div className="flex items-center gap-4">
-              <button className="text-gray-600 hover:text-gray-900">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </button>
-              <button className="text-gray-600 hover:text-gray-900">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              </button>
-              <button className="h-8 w-8 overflow-hidden rounded-full bg-gray-300 relative">
-                <Image
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                  alt="Avatar"
-                  fill
-                  unoptimized
-                  sizes="32px"
-                  className="object-cover"
-                />
-              </button>
-            </div>
-          </div>
-        </header>
+    <div className="min-h-screen bg-white pb-20 text-black">
+      {/* Top Navigation Bar */}
+      <div className="sticky top-0 z-50 flex items-center justify-between border-b border-gray-100 bg-white/80 px-6 py-4 backdrop-blur-md">
+        <button 
+          onClick={() => router.back()}
+          className="flex items-center gap-2 rounded-full bg-black px-6 py-2.5 text-sm font-bold text-white transition hover:bg-neutral-800"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Назад
+        </button>
+        
+        <div className="flex gap-2">
+          <button className="rounded-full bg-black px-8 py-2.5 text-sm font-bold text-white shadow-lg transition hover:bg-neutral-800">
+            Задача
+          </button>
+          <button className="rounded-full bg-gray-500 px-8 py-2.5 text-sm font-bold text-white transition hover:bg-gray-600">
+            Отчеты
+          </button>
+        </div>
+        <div className="w-24" /> {/* Spacer for balance */}
       </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Top Navigation with Tabs */}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors"
-          >
-            ← Назад
-          </button>
-          
-          <div className="flex gap-3">
-            <button className="bg-black text-white px-6 py-2 rounded-full text-sm font-semibold">
-              Задача
-            </button>
-            <button className="bg-gray-400 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-500">
-              Отчеты
-            </button>
-          </div>
-        </div>
-
-        {/* Project Info */}
-        <div className="mb-8">
-          <div className="flex gap-6 mb-6">
-            <div className="relative w-48 h-40 rounded-3xl overflow-hidden">
-              <Image
-                src="https://images.unsplash.com/photo-1486325212027-8081e485255e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200"
-                alt="Project"
-                fill
-                unoptimized
-                sizes="192px"
-                className="object-cover"
-              />
+      <div className="container mx-auto max-w-6xl space-y-8 p-6">
+        
+        {/* Project Header Card */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-white">
+          <div className="flex flex-col gap-6 md:flex-row md:items-start">
+             {/* Thumbnail */}
+            <div className="relative h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-gray-200 shadow-md">
+               {project.image || project.image_url ? (
+                 <Image 
+                   src={project.image || project.image_url || ""} 
+                   alt={project.name}
+                   fill
+                   className="object-cover"
+                 />
+               ) : (
+                <div className="flex h-full w-full items-center justify-center bg-gray-100 text-4xl font-bold text-gray-400">
+                  {project.name[0]}
+                </div>
+               )}
             </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Проект: Shyraq</h1>
-              
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                {/* Deadline Card */}
-                <div className="bg-yellow-100 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="w-5 h-5 text-gray-900" />
-                    <span className="text-sm font-semibold text-gray-900">Дедлайн: 12.12.2025 23:59 (25 дней)</span>
-                  </div>
-                  <p className="text-xs text-gray-700">Дата начала: 9.06.2025 12:00</p>
-                </div>
 
-                {/* Responsible Card */}
-                <div className="bg-gray-100 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-semibold text-gray-900">Ответственные: Омар Ахмет, Зейнулла Рыщман, Серик Рақ...</span>
-                  </div>
-                  <button className="text-purple-600 text-xs font-semibold hover:underline">
-                    Редактировать →
-                  </button>
-                </div>
+            <div className="flex-1 space-y-6">
+              <h1 className="text-4xl font-black tracking-tight text-black">
+                Проект: {project.name}
+              </h1>
 
-                {/* Priority Card */}
-                <div className="bg-black text-white rounded-2xl p-4 flex items-center justify-between">
-                  <span className="text-sm font-semibold">Приоритетные отсрочки по всем дедлайнам</span>
-                  <AlertCircle className="w-5 h-5" />
-                </div>
+              {/* Finance Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-[#A3E635] p-2 pl-6 pr-2 shadow-sm">
+                <span className="font-bold text-black/80">
+                  Финансы: <span className="font-black text-black">{project.budget_spent.toLocaleString()} / {project.budget_allocated.toLocaleString()}</span>
+                </span>
+                <button className="rounded-full bg-black px-6 py-2 text-sm font-bold text-white transition hover:bg-neutral-800">
+                   Отчеты расходов
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Project Phases */}
-        <div className="space-y-8">
-          {projectPhases.map((phaseGroup, phaseIdx) => (
-            <div key={phaseIdx}>
-              {/* Phase Title */}
-              <div className="bg-black text-white rounded-full px-6 py-3 inline-block mb-4 font-semibold text-sm">
-                {phaseGroup.phase}
+        {/* Info Grid */}
+        <div className="grid gap-4 md:grid-cols-12">
+           {/* Deadline Card */}
+           <div className="col-span-12 flex flex-col justify-center gap-1 rounded-3xl bg-[#EAD8B1] p-6 text-[#4A3B18] md:col-span-4">
+              <div className="flex items-center gap-3">
+                 <Clock className="h-5 w-5" />
+                 <span className="font-semibold">Дедлайн: {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Не указан'}</span>
               </div>
+              <div className="pl-8 text-sm opacity-80">
+                 {project.start_date && `Дата начала: ${new Date(project.start_date).toLocaleDateString()}`}
+              </div>
+           </div>
 
-              {/* Phase Tasks Grid */}
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                {phaseGroup.tasks.map((task, taskIdx) => (
-                  <div key={taskIdx} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-gray-600 text-sm">Проект: Shyraq</p>
-                        {task.statusColor === 'green' ? (
-                          <span className="inline-block mt-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                            ✓ Выполнено
-                          </span>
-                        ) : (
-                          <span className="inline-block mt-2 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-semibold">
-                            ● {task.status}
-                          </span>
-                        )}
+           {/* Team Card */}
+           <div className="col-span-12 flex items-center justify-between rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md md:col-span-5">
+              <div className="flex items-center gap-4">
+                 <div className="flex -space-x-3">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-xs font-bold text-gray-600">
+                        U{i}
                       </div>
-                      {task.daysLeft && (
-                        <span className="text-xs text-gray-600 font-semibold">{task.daysLeft}</span>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-gray-900 mb-2">{task.number}. {task.title}</h3>
-                    <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-                  </div>
-                ))}
+                    ))}
+                 </div>
+                 <div className="text-sm font-medium leading-tight text-gray-600">
+                    Ответственные: <br/>
+                    <span className="text-black">Омар Ахмет, Зейнулла...</span>
+                 </div>
               </div>
+              <Maximize2 className="h-5 w-5 text-gray-400" />
+           </div>
 
-              {/* Add Task Button */}
-              {phaseIdx === 1 && (
-                <div className="text-right mb-8">
-                  <button className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold">
-                    <Plus className="w-5 h-5" /> Добавить задачу
-                  </button>
-                </div>
-              )}
+           {/* Alert Card */}
+           <div className="col-span-12 flex items-center justify-between rounded-3xl bg-black p-6 text-white md:col-span-3">
+              <div className="flex items-center gap-3">
+                 <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+                 <span className="text-sm font-medium leading-tight">Причины отсрочки по всем дедлайнам</span>
+              </div>
+              <Maximize2 className="h-4 w-4 text-white/50" />
+           </div>
+        </div>
 
-              {/* Budget Section for middle phase */}
-              {phaseIdx === 1 && (
-                <div className="bg-gray-100 rounded-2xl p-6 mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                      📊 Бюджет проекта
-                    </h3>
-                    <span className="text-sm text-gray-600">Отчет расходов →</span>
-                  </div>
-                  <div className="flex items-baseline gap-4">
-                    <div>
-                      <p className="text-gray-600 text-sm">Выделено</p>
-                      <p className="text-2xl font-bold text-gray-900">{budgetData.allocated.toLocaleString()}</p>
-                    </div>
-                    <span className="text-gray-400">/</span>
-                    <div>
-                      <p className="text-gray-600 text-sm">Всего</p>
-                      <p className="text-xl font-bold text-gray-900">{budgetData.total.toLocaleString()} ₸</p>
-                    </div>
-                  </div>
-                  <div className="w-full bg-gray-300 rounded-full h-2 mt-4">
-                    <div className="bg-yellow-400 h-2 rounded-full" style={{ width: `${(budgetData.allocated / budgetData.total) * 100}%` }}></div>
-                  </div>
+        {/* Phases & Stages */}
+        <div className="space-y-10">
+          {PHASES.map((phase, idx) => {
+             const phaseStages = getPhaseStages(idx)
+             
+             return (
+              <div key={phase.id} className="space-y-6">
+                {/* Phase Header */}
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                   <div className="flex items-center gap-4 rounded-full bg-black py-3 pl-6 pr-3 text-white max-sm:w-full max-sm:justify-between">
+                      <span className="font-bold">{phase.title}</span>
+                      {phase.delay && (
+                         <span className="flex items-center gap-2 rounded-full bg-[#FDA4AF] px-3 py-1 text-xs font-bold text-[#881337]">
+                            <Clock className="h-3 w-3" /> {phase.delay}
+                         </span>
+                      )}
+                   </div>
+                   
+                   <button className="flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-bold text-white transition hover:bg-neutral-800">
+                      <Plus className="h-4 w-4" />
+                      Добавить задачу
+                   </button>
                 </div>
-              )}
+
+                {/* Horizontal Scroll / Grid of Stages */}
+                <div className="flex gap-4 overflow-x-auto pb-4 items-stretch scrollbar-hide">
+                   {phaseStages.length > 0 ? phaseStages.map((stage, sIdx) => (
+                      <StageCardWithTasks 
+                        key={stage.id} 
+                        stage={stage} 
+                        projectName={project.name} 
+                      />
+                   )) : (
+                     <div className="flex w-full items-center justify-center rounded-2xl border-2 border-dashed border-gray-100 py-8">
+                       <span className="text-gray-400">Нет этапов</span>
+                     </div>
+                   )}
+                   
+                   {/* Add More Arrow Card - Visual Only */}
+                   {phaseStages.length > 0 && (
+                      <button className="flex h-auto min-w-[60px] items-center justify-center rounded-full bg-black transition hover:scale-105">
+                         <ArrowRight className="h-8 w-8 text-white" />
+                      </button>
+                   )}
+                </div>
+              </div>
+             )
+          })}
+        </div>
+
+        {/* Bottom Actions */}
+          <div className="flex justify-center pt-8">
+            <button
+             onClick={() => {
+              setStageError(null)
+              setStageModalOpen(true)
+             }}
+             className="flex w-full max-w-md items-center justify-center gap-2 rounded-full bg-black py-4 font-bold text-white shadow-xl transition hover:bg-neutral-800"
+            >
+              <Plus className="h-5 w-5" />
+              Добавить этап проекта
+           </button>
+        </div>
+      </div>
+
+      {/* AI Floating Button */}
+      <button className="fixed bottom-8 right-8 z-50 flex items-center gap-2 rounded-full bg-[#4B5563] p-4 text-white shadow-2xl transition hover:scale-110">
+         <Sparkles className="h-6 w-6" />
+      </button>
+
+      {stageModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <form
+            onSubmit={handleCreateStage}
+            className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold">Новый этап</h3>
+              <button
+                type="button"
+                onClick={() => setStageModalOpen(false)}
+                className="text-sm text-gray-400 hover:text-black"
+              >
+                Закрыть
+              </button>
             </div>
-          ))}
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Название этапа</label>
+                <input
+                  value={stageTitle}
+                  onChange={(e) => setStageTitle(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
+                  placeholder="Например: Предпроектная подготовка"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Описание</label>
+                <textarea
+                  value={stageDescription}
+                  onChange={(e) => setStageDescription(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
+                  rows={3}
+                  placeholder="Опишите цели этапа"
+                />
+              </div>
+              {stageError && (
+                <div className="rounded-xl bg-red-50 px-4 py-2 text-sm text-red-600">{stageError}</div>
+              )}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={stageSubmitting}
+                  className="rounded-full bg-black px-5 py-2 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                >
+                  {stageSubmitting ? "Создание..." : "Создать этап"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStageModalOpen(false)}
+                  className="text-sm text-gray-500 hover:text-black"
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
+      )}
 
-        {/* Add Stage Button */}
-        <div className="text-center mt-12">
-          <button className="bg-yellow-200 hover:bg-yellow-300 text-gray-900 px-8 py-3 rounded-full font-semibold transition-colors">
-            + Добавить этап проекта
-          </button>
-        </div>
-
-        {/* Floating AI Icon */}
-        <div className="fixed bottom-8 right-8 w-16 h-16 bg-yellow-200 rounded-full flex items-center justify-center cursor-pointer hover:bg-yellow-300 transition-colors shadow-lg">
-          <span className="text-2xl">🤖</span>
-        </div>
-      </main>
     </div>
-  );
+  )
 }

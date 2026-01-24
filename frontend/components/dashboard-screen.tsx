@@ -5,57 +5,23 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Plus, Sparkles } from "lucide-react";
 import Header from "@/components/header";
 
-const urgentTasks = [
-  {
-    title: "Нужно привезти 10 плиток",
-    description:
-      "На объекте Shyraq срочно требуется новая плитка, 5x3 метра, 2 штуки для наличников вокруг дверей на 17 этаже",
-    project: "Shyraq",
-    due: "18 часов",
-  },
-];
+type Task = {
+  title: string;
+  description: string;
+  project: string;
+  due?: string;
+  overdue?: string;
+};
 
-const myTasks = [
-  {
-    title: "Возведение колонн на 13 этаже",
-    description: "Интерьеры подъездов и этажей. Перед началом работ нужно провести подготовку...",
-    project: "Shyraq",
-    overdue: "-9 часов",
-  },
-  {
-    title: "Нужно сделать новую планировку",
-    description: "На объекте Ansau срочно требуется новая планировка 5-го этажа, чтобы совпадала с новым...",
-    project: "Ansau",
-    due: "2 дня",
-  },
-  {
-    title: "Нужно сделать новую планировку",
-    description: "На объекте Dariya срочно требуется новая планировка 5-го этажа, чтобы совпадала с новым...",
-    project: "Dariya",
-    due: "20 дней",
-  },
-];
+type Project = {
+  name: string;
+  due: string;
+  image: string;
+};
 
-const projects = [
-  {
-    name: "Shyraq",
-    due: "25 дней",
-    image:
-      "https://images.unsplash.com/photo-1448630360428-65456885c650?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Ansau",
-    due: "55 дней",
-    image:
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    name: "Dariya",
-    due: "55 дней",
-    image:
-      "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80",
-  },
-];
+const urgentTasks: Task[] = [];
+const myTasks: Task[] = [];
+const projects: Project[] = [];
 
 const badge = (text: string, color: "red" | "green" | "yellow") => {
   const map = {
@@ -88,7 +54,7 @@ export default function DashboardScreen() {
     );
   };
 
-  const taskCard = (task: typeof myTasks[number]) => (
+  const taskCard = (task: Task) => (
     <div className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-white/70 p-4 shadow-sm backdrop-blur dark:border-[#2d2648] dark:bg-[#161126]">
       <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
         <span>Проект: {task.project}</span>
@@ -109,7 +75,7 @@ export default function DashboardScreen() {
     </div>
   );
 
-  const projectCard = (project: typeof projects[number]) => (
+  const projectCard = (project: Project) => (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/70 shadow-sm backdrop-blur dark:border-[#2d2648] dark:bg-[#161126]">
       <div className="relative h-44 w-full">
         <Image
@@ -147,77 +113,87 @@ export default function DashboardScreen() {
       <main className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pb-14">
         <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#120d24] via-[#0f0a1f] to-[#090716] p-6 shadow-lg dark:border-[#241c3d] dark:from-[#120d24] dark:via-[#0f0a1f] dark:to-[#090716]">
           {sectionCard(`Срочные задачи: ${urgentTasks.length}`, (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {urgentTasks.map((task) => (
-                <div key={task.title} className="rounded-2xl border border-emerald-200/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-emerald-500/20 dark:bg-[#161126]">
-                  <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
-                    <span>Проект: {task.project}</span>
-                    {badge(task.due, "green")}
+            urgentTasks.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {urgentTasks.map((task) => (
+                  <div key={task.title} className="rounded-2xl border border-emerald-200/70 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-emerald-500/20 dark:bg-[#161126]">
+                    <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+                      <span>Проект: {task.project}</span>
+                      {badge(task.due ?? "", "green")}
+                    </div>
+                    <h3 className="mt-3 text-lg font-semibold leading-tight text-slate-900 dark:text-white">{task.title}</h3>
+                    <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">{task.description}</p>
                   </div>
-                  <h3 className="mt-3 text-lg font-semibold leading-tight text-slate-900 dark:text-white">{task.title}</h3>
-                  <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">{task.description}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           ), "green")}
 
           <div className="mt-6 flex flex-col gap-8">
             {sectionCard(`Мои задачи: ${myTasks.length}`, (
-              <div className="grid gap-4 md:grid-cols-3">
-                {myTasks.map((task) => (
-                  <div key={task.title} className="relative">
-                    {taskCard(task)}
-                    <button
-                      className="absolute right-[-16px] top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-black/80 lg:flex dark:bg-white dark:text-black"
-                      aria-label="Навигация"
-                    >
-                      <ArrowRight className="h-5 w-5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              myTasks.length > 0 && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {myTasks.map((task) => (
+                    <div key={task.title} className="relative">
+                      {taskCard(task)}
+                      <button
+                        className="absolute right-[-16px] top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-black/80 lg:flex dark:bg-white dark:text-black"
+                        aria-label="Навигация"
+                      >
+                        <ArrowRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
             ), "red")}
 
             {sectionCard(`Проекты: ${projects.length}`, (
-              <div className="grid gap-6 md:grid-cols-3">
-                {projects.map((project) => (
-                  <div key={project.name} className="relative">
-                    {projectCard(project)}
-                    <button
-                      className="absolute right-[-16px] top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-black/80 lg:flex dark:bg-white dark:text-black"
-                      aria-label="Навигация"
-                    >
-                      <ArrowRight className="h-5 w-5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              projects.length > 0 && (
+                <div className="grid gap-6 md:grid-cols-3">
+                  {projects.map((project) => (
+                    <div key={project.name} className="relative">
+                      {projectCard(project)}
+                      <button
+                        className="absolute right-[-16px] top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-black/80 lg:flex dark:bg-white dark:text-black"
+                        aria-label="Навигация"
+                      >
+                        <ArrowRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
             ), "yellow")}
 
             {sectionCard(`Задачи подчинённых`, (
-              <div className="grid gap-4 md:grid-cols-3">
-                {myTasks.map((task, idx) => (
-                  <div key={`${task.title}-sub-${idx}`} className="relative">
-                    {taskCard(task)}
-                    <button
-                      className="absolute right-[-16px] top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-black/80 lg:flex dark:bg-white dark:text-black"
-                      aria-label="Навигация"
-                    >
-                      <ArrowRight className="h-5 w-5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              myTasks.length > 0 && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {myTasks.map((task, idx) => (
+                    <div key={`${task.title}-sub-${idx}`} className="relative">
+                      {taskCard(task)}
+                      <button
+                        className="absolute right-[-16px] top-1/2 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-lg transition hover:bg-black/80 lg:flex dark:bg-white dark:text-black"
+                        aria-label="Навигация"
+                      >
+                        <ArrowRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
             ), "red")}
 
             {sectionCard(`Проекты подчинённых: ${projects.length}`, (
-              <div className="grid gap-6 md:grid-cols-3">
-                {projects.map((project, idx) => (
-                  <div key={`${project.name}-sub-${idx}`} className="relative">
-                    {projectCard(project)}
-                  </div>
-                ))}
-              </div>
+              projects.length > 0 && (
+                <div className="grid gap-6 md:grid-cols-3">
+                  {projects.map((project, idx) => (
+                    <div key={`${project.name}-sub-${idx}`} className="relative">
+                      {projectCard(project)}
+                    </div>
+                  ))}
+                </div>
+              )
             ), "yellow")}
           </div>
 
