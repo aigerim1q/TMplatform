@@ -5,6 +5,7 @@ An AI-powered module that automatically extracts project structure information f
 ## Overview
 
 The ЖЦП Parser is designed to automatically extract structured project information from unstructured Project Lifecycle Documents, including:
+
 - Project phases
 - Tasks within each phase
 - Timeline information (start/end dates)
@@ -17,6 +18,8 @@ This is the **Go version** of the original Python implementation, providing impr
 
 - **Multi-format Support**: PDF and DOCX document parsing
 - **AI-Powered Extraction**: Uses LLMs to extract structured data
+- **Intelligent Task Assignment**: Automatically assigns responsible persons to tasks based on content analysis
+- **Employee Pool Management**: Pre-configured team members with different roles and specializations
 - **Fallback Mechanisms**: Supports multiple LLM providers (OpenAI, Anthropic, Ollama)
 - **Data Validation**: Comprehensive validation and quality assurance
 - **Error Handling**: Robust error handling and recovery
@@ -32,12 +35,14 @@ This is the **Go version** of the original Python implementation, providing impr
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd zhcp-parser-go
 ```
 
 2. Initialize Go modules (if not already done):
+
 ```bash
 go mod init zhcp-parser-go
 go mod tidy
@@ -60,20 +65,20 @@ Configure your preferred providers in `configs/llm_config.yaml`:
 providers:
   openai:
     enabled: false
-    api_key: "${OPENAI_API_KEY}"  # Use environment variable
+    api_key: "${OPENAI_API_KEY}" # Use environment variable
     model: "gpt-4-turbo"
     temperature: 0.1
     max_tokens: 4096
 
   anthropic:
     enabled: false
-    api_key: "${ANTHROPIC_API_KEY}"  # Use environment variable
+    api_key: "${ANTHROPIC_API_KEY}" # Use environment variable
     model: "claude-3-sonnet-20240229"
     temperature: 0.1
     max_tokens: 4096
 
   ollama:
-    enabled: true  # Default to local model
+    enabled: true # Default to local model
     model: "llama3"
     base_url: "http://localhost:11434"
     temperature: 0.1
@@ -87,8 +92,8 @@ providers:
     max_tokens: 4096
 
 provider_priority:
-  - "ollama"    # Primary provider
-  - "openai"    # Fallback 1
+  - "ollama" # Primary provider
+  - "openai" # Fallback 1
   - "anthropic" # Fallback 2
 ```
 
@@ -172,11 +177,13 @@ func main() {
 ### ZhcpParser Class
 
 #### Constructor
+
 ```go
 parser, err := parser.NewZhcpParser(config)
 ```
 
 **Parameters:**
+
 - `config` (Config): Configuration object. If nil, uses default configuration
 
 #### Methods
@@ -186,11 +193,13 @@ parser, err := parser.NewZhcpParser(config)
 Parses a document and extracts project structure.
 
 **Parameters:**
+
 - `documentPath` (string): Path to the PDF or DOCX document
 - `validate` (bool): Whether to perform validation. Default is true
 - `enrich` (bool): Whether to enrich data with computed fields. Default is true
 
 **Returns:**
+
 ```go
 struct {
     Success           bool
@@ -280,6 +289,69 @@ zhcp-parser-go/
 - `github.com/spf13/cobra` - For CLI commands
 - `gopkg.in/yaml.v3` - For configuration management
 
+## Automatic Task Assignment
+
+### Overview
+
+The parser includes an intelligent task assignment feature that automatically assigns responsible persons to project tasks when they are not explicitly mentioned in the source document.
+
+### How It Works
+
+1. **Employee Pool**: The system maintains a pool of fictional employees with various roles in `prompts/employee_pool.json`
+2. **AI Analysis**: The LLM analyzes each task's name and description
+3. **Smart Matching**: Based on keywords and task type, the AI assigns the most suitable specialist(s)
+4. **Preservation**: If responsible persons are already mentioned in the document, they are preserved as-is
+
+### Available Roles
+
+The system includes employees with the following specializations:
+
+- **Руководитель проекта** (Project Manager) - Project coordination and planning
+- **Бизнес-аналитик** (Business Analyst) - Requirements analysis and documentation
+- **Архитектор решений** (Solution Architect) - System architecture and design
+- **Backend разработчик** (Backend Developer) - Server-side development and APIs
+- **Frontend разработчик** (Frontend Developer) - User interface development
+- **Fullstack разработчик** (Fullstack Developer) - Full-stack web development
+- **Тестировщик** (QA Engineer) - Testing and quality assurance
+- **DevOps инженер** (DevOps Engineer) - CI/CD and infrastructure
+- **UI/UX дизайнер** (UI/UX Designer) - Interface design and user experience
+- **AI интегратор** (AI Integration Specialist) - AI/ML integration and LLM APIs
+- **Data Scientist** - Data analysis and machine learning models
+- **Технический писатель** (Technical Writer) - Technical documentation
+- **Специалист по безопасности** (Security Specialist) - Information security
+- **Мобильный разработчик** (Mobile Developer) - iOS/Android applications
+
+### Assignment Examples
+
+The AI uses keyword analysis to match tasks to specialists:
+
+- "Разработка API" → Backend Developer
+- "Дизайн интерфейса" → UI/UX Designer
+- "Интеграция ChatGPT" → AI Integration Specialist
+- "Тестирование модуля" → QA Engineer
+- "Настройка CI/CD" → DevOps Engineer
+- "Анализ требований" → Business Analyst
+
+### Customization
+
+To customize the employee pool, edit `prompts/employee_pool.json`:
+
+```json
+{
+  "employees": [
+    {
+      "name": "Имя Фамилия",
+      "role": "Должность на русском",
+      "role_en": "Role in English",
+      "specialization": ["область 1", "область 2"],
+      "keywords": ["ключевое", "слово", "для", "поиска"]
+    }
+  ]
+}
+```
+
+The system will automatically reload the employee pool when the parser is reinitialized.
+
 ## Performance Considerations
 
 - **Large Documents**: The system handles large documents automatically with chunked processing
@@ -290,6 +362,7 @@ zhcp-parser-go/
 ## Error Handling
 
 The system implements comprehensive error handling with:
+
 - Detailed error categorization
 - Graceful degradation
 - Fallback mechanisms

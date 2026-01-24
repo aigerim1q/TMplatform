@@ -37,6 +37,7 @@ type ProjectStructure struct {
 type Project struct {
 	Title       string                 `json:"title" validate:"required"`
 	Description string                 `json:"description" validate:"required"`
+	Deadline    string                 `json:"deadline,omitempty"`
 	Phases      []Phase                `json:"phases" validate:"required,min=1"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
@@ -65,7 +66,7 @@ type Task struct {
 
 // ResponsiblePerson represents a person responsible for a task
 type ResponsiblePerson struct {
-	Name    string `json:"name" validate:"required"`
+	Name    string `json:"name"`
 	Role    string `json:"role"`
 	Contact string `json:"contact"`
 }

@@ -43,9 +43,18 @@ func (dt *DataTransformer) Transform(llmResponse string) *TransformationResult {
 
 	// Extract project structure
 	projectData := responseMap
+
+	// Handle standard "project" wrapper
 	if proj, exists := responseMap["project"]; exists {
 		if projMap, ok := proj.(map[string]interface{}); ok {
 			projectData = projMap
+		}
+	} else if props, ok := responseMap["properties"].(map[string]interface{}); ok {
+		// Handle DeepSeek/Schema-like wrapper: properties -> project -> properties
+		if proj, ok := props["project"].(map[string]interface{}); ok {
+			if innerProps, ok := proj["properties"].(map[string]interface{}); ok {
+				projectData = innerProps
+			}
 		}
 	}
 
@@ -82,6 +91,7 @@ func (dt *DataTransformer) normalizeData(rawData map[string]interface{}) *Projec
 		Project: Project{
 			Title:       dt.normalizeText(rawData["title"]),
 			Description: dt.normalizeText(rawData["description"]),
+			Deadline:    dt.normalizeDate(rawData["deadline"]),
 			Phases:      []Phase{},
 			Metadata:    make(map[string]interface{}),
 		},

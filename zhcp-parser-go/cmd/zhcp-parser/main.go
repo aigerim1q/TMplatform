@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,6 +17,8 @@ import (
 	"zhcp-parser-go/internal/common"
 	"zhcp-parser-go/internal/config"
 	"zhcp-parser-go/internal/parser"
+	"zhcp-parser-go/internal/storage/sqlite"
+	"zhcp-parser-go/internal/validators"
 
 	"github.com/spf13/cobra"
 )
@@ -25,6 +28,7 @@ var (
 	validate   bool
 	enrich     bool
 	outputFile string
+	dbPath     string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -77,6 +81,7 @@ func init() {
 	parseCmd.Flags().BoolVarP(&validate, "validate", "v", true, "Whether to perform validation")
 	parseCmd.Flags().BoolVarP(&enrich, "enrich", "e", true, "Whether to enrich data with computed fields")
 	parseCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file for results (JSON format)")
+	parseCmd.Flags().StringVarP(&dbPath, "db", "d", "zhcp.db", "Path to SQLite database")
 
 	// Add subcommands
 	rootCmd.AddCommand(parseCmd)
@@ -176,6 +181,37 @@ func parseDocument(documentPath string) {
 			}
 			fmt.Println()
 		}
+
+		// Database Storage Logic
+		fmt.Println("--------------------------------------------------")
+		fmt.Println("[DB] Validating for Database persistence...")
+		dbVal := validators.NewDBValidator()
+		missingFields := dbVal.ValidateForDB(result.ProjectStructure)
+
+		if len(missingFields) > 0 {
+			fmt.Println("[DB] ⚠️  Cannot save to Database. The following information is missing:")
+			for _, m := range missingFields {
+				fmt.Printf("  - %s\n", m)
+			}
+			fmt.Println("[DB] Please provide a document with more complete information.")
+		} else {
+			fmt.Println("[DB] Validation passed! Saving to database...")
+			store := sqlite.New(dbPath)
+			if err := store.Init(context.Background()); err != nil {
+				fmt.Printf("[DB] ❌ Failed to initialize database: %v\n", err)
+			} else {
+				defer store.Close()
+				dbRes, err := store.PersistProjectStructure(context.Background(), result.ProjectStructure)
+				if err != nil {
+					fmt.Printf("[DB] ❌ Failed to persist project: %v\n", err)
+				} else {
+					fmt.Printf("[DB] ✅ Successfully saved to database (%s)!\n", dbPath)
+					fmt.Printf("[DB] Created Project ID: %d\n", dbRes.ProjectID)
+					fmt.Printf("[DB] Created Phases: %d, Tasks: %d\n", len(dbRes.PhaseIDs), len(dbRes.TaskIDs))
+				}
+			}
+		}
+		fmt.Println("--------------------------------------------------")
 
 		// Optionally save to output file
 		if outputFile != "" {

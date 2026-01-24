@@ -11,9 +11,10 @@ import (
 
 // PromptManager manages prompt templates and creation
 type PromptManager struct {
-	promptsDir string
-	prompts    map[string]PromptTemplate
-	logger     interface{} // In a real implementation, we'd use a proper logger interface
+	promptsDir   string
+	prompts      map[string]PromptTemplate
+	employeePool EmployeePool
+	logger       interface{} // In a real implementation, we'd use a proper logger interface
 }
 
 // NewPromptManager creates a new prompt manager
@@ -25,6 +26,9 @@ func NewPromptManager(promptsDir string) *PromptManager {
 
 	// Load all prompt templates
 	pm.loadPrompts()
+
+	// Load employee pool
+	pm.loadEmployeePool()
 
 	return pm
 }
@@ -158,9 +162,13 @@ func (pm *PromptManager) GetPrompt(promptName string, args map[string]interface{
 
 // CreateExtractionPrompt creates a specialized prompt for project structure extraction
 func (pm *PromptManager) CreateExtractionPrompt(documentContent string, jsonSchema map[string]interface{}) (string, error) {
+	// Format employee pool for prompt
+	employeePoolStr := pm.formatEmployeePool()
+
 	args := map[string]interface{}{
 		"document_content": documentContent,
 		"json_schema":      jsonSchema,
+		"employee_pool":    employeePoolStr,
 	}
 
 	return pm.GetPrompt("project_extraction", args)
@@ -222,4 +230,73 @@ func (pm *PromptManager) UpdatePrompt(name string, template PromptTemplate) erro
 	}
 
 	return pm.SavePrompt(name, template)
+}
+
+// loadEmployeePool loads the employee pool from JSON file
+func (pm *PromptManager) loadEmployeePool() {
+	employeePoolPath := filepath.Join(pm.promptsDir, "employee_pool.json")
+	
+	// Check if file exists
+	if _, err := os.Stat(employeePoolPath); os.IsNotExist(err) {
+		// Create default employee pool
+		pm.createDefaultEmployeePool()
+		return
+	}
+
+	// Read the file
+	data, err := os.ReadFile(employeePoolPath)
+	if err != nil {
+		// If can't read, use default
+		pm.createDefaultEmployeePool()
+		return
+	}
+
+	// Unmarshal the JSON
+	if err := json.Unmarshal(data, &pm.employeePool); err != nil {
+		// If can't parse, use default
+		pm.createDefaultEmployeePool()
+		return
+	}
+}
+
+// createDefaultEmployeePool creates a minimal default employee pool
+func (pm *PromptManager) createDefaultEmployeePool() {
+	pm.employeePool = EmployeePool{
+		Description: "Default employee pool",
+		Version:     "1.0",
+		Employees: []Employee{
+			{Name: "Алексей Петров", Role: "Руководитель проекта", RoleEN: "Project Manager"},
+			{Name: "Иван Волков", Role: "Backend разработчик", RoleEN: "Backend Developer"},
+			{Name: "Елена Новикова", Role: "Frontend разработчик", RoleEN: "Frontend Developer"},
+			{Name: "Ольга Федорова", Role: "Тестировщик", RoleEN: "QA Engineer"},
+			{Name: "Роман Белов", Role: "AI интегратор", RoleEN: "AI Integration Specialist"},
+		},
+	}
+}
+
+// formatEmployeePool formats the employee pool for use in prompts
+func (pm *PromptManager) formatEmployeePool() string {
+	if len(pm.employeePool.Employees) == 0 {
+		return "No employee pool available"
+	}
+
+	var builder strings.Builder
+	builder.WriteString("Available team members:\n\n")
+
+	for _, emp := range pm.employeePool.Employees {
+		builder.WriteString(fmt.Sprintf("- %s (%s / %s)\n", emp.Name, emp.Role, emp.RoleEN))
+		if len(emp.Specialization) > 0 {
+			builder.WriteString(fmt.Sprintf("  Специализация: %s\n", strings.Join(emp.Specialization, ", ")))
+		}
+		if len(emp.Keywords) > 0 {
+			builder.WriteString(fmt.Sprintf("  Ключевые слова: %s\n", strings.Join(emp.Keywords, ", ")))
+		}
+	}
+
+	return builder.String()
+}
+
+// GetEmployeePool returns the current employee pool
+func (pm *PromptManager) GetEmployeePool() EmployeePool {
+	return pm.employeePool
 }
