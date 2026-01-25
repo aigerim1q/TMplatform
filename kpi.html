@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>KPI Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #f6f1e9;
+      --sidebar-bg: #ffffff;
+      --card-bg: #ffffff;
+      --text-dark: #1f1f1f;
+      --text-muted: #8b8b8b;
+      --accent: #f4b860;
+      --accent-light: #fde7c3;
+      --border: #e9e4dc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-dark);
+    }
+
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      padding: 24px;
+      border-right: 1px solid var(--border);
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 22px;
+      margin-bottom: 32px;
+    }
+
+    .nav h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .nav a {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: var(--text-dark);
+      text-decoration: none;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    .nav a.active {
+      background: var(--accent-light);
+      color: #9a6400;
+    }
+
+    .nav a:hover {
+      background: #f3f3f3;
+    }
+
+    /* ===== MAIN ===== */
+    .main {
+      flex: 1;
+      padding: 32px 40px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .search input {
+      width: 260px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      outline: none;
+    }
+
+    .edit-btn {
+      background: var(--accent-light);
+      border: 1px solid var(--accent);
+      color: #9a6400;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid var(--border);
+    }
+
+    .card h3 {
+      margin-bottom: 20px;
+      font-size: 20px;
+    }
+
+    /* ===== DEADLINES CARD ===== */
+    .avatars {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .avatar {
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .avatar img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 6px;
+    }
+
+    .show-all {
+      color: #b07600;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    .deadline-date {
+      font-size: 36px;
+      font-weight: 700;
+      color: #6b4200;
+    }
+
+    .deadline-year {
+      color: var(--accent);
+      font-size: 28px;
+    }
+
+    /* ===== RESPONSIBLE ===== */
+    .responsible {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .responsible img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+    }
+
+    /* ===== PROGRESS ===== */
+    .progress-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 16px;
+      margin-bottom: 12px;
+    }
+
+    .circle {
+      width: 160px;
+      height: 80px;
+      border-radius: 160px 160px 0 0;
+      background: conic-gradient(
+        var(--accent) 0deg 151deg,
+        #eee 151deg 180deg
+      );
+      position: relative;
+      overflow: hidden;
+    }
+
+    .circle::after {
+      content: "";
+      position: absolute;
+      width: 120px;
+      height: 60px;
+      background: white;
+      border-radius: 120px 120px 0 0;
+      bottom: 0;
+      left: 20px;
+    }
+
+    .progress-value {
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .progress-text {
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    /* ===== STAFF ===== */
+    .staff {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .staff-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .staff-name {
+      width: 80px;
+      font-weight: 600;
+    }
+
+    .bar {
+      flex: 1;
+      height: 10px;
+      background: #f1f1f1;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 6px;
+    }
+
+    .percent {
+      font-size: 12px;
+      width: 40px;
+      text-align: right;
+    }
+
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+
+
+
+    /* MAIN */
+.main {
+  flex: 1;
+  padding: 30px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.search {
+  background: #fff;
+  padding: 8px 14px;
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+}
+
+.search input {
+  border: none;
+  outline: none;
+}
+
+.top-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.avatar {
+  border-radius: 50%;
+}
+
+.sidebar {
+  background: #ffffff !important;
+  min-height: 100vh;
+  border-right: 1px solid #e9e4dc;
+}
+
+  </style>
+</head>
+
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">Logo</div>
+
+    <div class="nav">
+      <h4>Приборная панель</h4>
+      <a href="addtask.html">Приборная панель</a>
+      <a href="#">Календарь</a>
+      <a href="profile.html">Мои задачи</a>
+      <a href="addtask.html">Добавить задачу</a>
+      <a href="#">Иерархия</a>
+
+      <h4 style="margin-top:24px">Страницы</h4>
+     <a href="profile.html">Профиль</a>
+<a class="active" href="kpi.html">KPI</a>
+
+      <a href="#">Финансовый бюджет</a>
+      <a href="#">FAQs</a>
+      <a href="#">Заметка</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input placeholder="Поиск">
+      </div>
+
+      <div class="top-actions">
+        <div class="lang">🇷🇺 Русский</div>
+        <i class="fa-solid fa-bell"></i>
+        <img class="avatar" src="https://i.pravatar.cc/40">
+      </div>
+    </div>
+
+    <h1>KPI</h1>
+
+    <div class="grid">
+
+      <!-- LEFT CARD -->
+      <div class="card">
+        <h3>Ближайшие дедлайны у</h3>
+
+        <div class="avatars">
+          <div class="avatar">
+            <img src="https://i.pravatar.cc/100?1">
+            Aizhan<br><small>UX/UI</small>
+          </div>
+          <div class="avatar">
+            <img src="https://i.pravatar.cc/100?2">
+            Bolat<br><small>Frontend</small>
+          </div>
+          <div class="avatar">
+            <img src="https://i.pravatar.cc/100?3">
+            Aibol<br><small>Backend</small>
+          </div>
+        </div>
+
+        <div class="show-all">Показать все →</div>
+
+        <div class="divider"></div>
+
+        <div>
+          <div style="color:var(--text-muted);margin-bottom:6px;">Дедлайн</div>
+          <div class="deadline-date">27 January</div>
+          <div class="deadline-year">2026</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div style="color:var(--text-muted);margin-bottom:10px;">Ответственные</div>
+        <div class="responsible">
+          <img src="https://i.pravatar.cc/100?1">
+          <div>
+            <strong>Aizhan Abay</strong><br>
+            <small class="text-muted">UX/UI designer</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div style="display:flex;flex-direction:column;gap:24px;">
+
+        <div class="card">
+          <h3>Проект: Shyraq</h3>
+
+          <div class="progress-wrapper">
+            <div class="circle">
+              <div class="progress-value">84%</div>
+            </div>
+          </div>
+          <div class="progress-text">In progress</div>
+        </div>
+
+        <div class="card">
+          <h3>Высшие штаты</h3>
+
+          <div class="staff">
+            <div class="staff-row">
+              <div class="staff-name">ARAILYМ</div>
+              <div class="bar"><span style="width:99%"></span></div>
+              <div class="percent">99%</div>
+            </div>
+
+            <div class="staff-row">
+              <div class="staff-name">ALFIYA</div>
+              <div class="bar"><span style="width:89%"></span></div>
+              <div class="percent">89%</div>
+            </div>
+
+            <div class="staff-row">
+              <div class="staff-name">GAUKHAR</div>
+              <div class="bar"><span style="width:70%"></span></div>
+              <div class="percent">70%</div>
+            </div>
+
+            <div class="staff-row">
+              <div class="staff-name">YEDIL</div>
+              <div class="bar"><span style="width:56%"></span></div>
+              <div class="percent">56%</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Placeholder for interactivity
+  console.log("KPI dashboard loaded");
+</script>
+</body>
+</html>

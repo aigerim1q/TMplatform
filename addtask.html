@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Добавить задачу</title>
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <link rel="stylesheet" href="addtask.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="menu">
+      <div class="menu-title">ПРИБОРНАЯ ПАНЕЛЬ</div>
+
+      <a class="menu-item" href="index.html" data-page="index">
+        <i class="fa-solid fa-house"></i>Приборная панель 
+      </a>
+
+      <a class="menu-item" href="calendar.html" data-page="calendar">
+        <i class="fa-regular fa-calendar"></i>Календарь
+      </a>
+
+      <a class="menu-item" href="tasks.html" data-page="tasks">
+        <i class="fa-regular fa-rectangle-list"></i>Мои задачи
+      </a>
+
+      <a class="menu-item active" href="addtask.html" data-page="addtask">
+        <i class="fa-regular fa-square-plus"></i>Добавить задачу
+      </a>
+
+      <a class="menu-item" href="Hierarchy.html" data-page="hierarchy">
+        <i class="fa-solid fa-sitemap"></i>Иерархия
+      </a>
+
+      <div class="menu-title">СТРАНИЦЫ</div>
+
+      <a class="menu-item" href="profile.html" data-page="profile">
+        <i class="fa-regular fa-user"></i>Профиль
+      </a>
+
+      <a class="menu-item" href="kpi.html" data-page="kpi">
+        <i class="fa-solid fa-chart-line"></i>KPI
+      </a>
+
+      <a class="menu-item" href="budget.html" data-page="budget">
+        <i class="fa-solid fa-wallet"></i>Финансовый бюджет
+      </a>
+
+      <a class="menu-item" href="faq.html" data-page="faq">
+        <i class="fa-regular fa-circle-question"></i>FAQs
+      </a>
+
+      <a class="menu-item" href="notes.html" data-page="notes">
+        <i class="fa-regular fa-note-sticky"></i>Заметка
+      </a>
+    </div>
+  </aside>
+
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="burger" id="burger">
+  <i class="fa-solid fa-bars"></i>
+</div>
+
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input placeholder="Поиск">
+      </div>
+
+      <div class="top-actions">
+        <div class="lang">🇷🇺 Русский</div>
+        <i class="fa-solid fa-bell"></i>
+        <img class="avatar" src="https://i.pravatar.cc/40">
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <h1>Добавить задачу</h1>
+
+    <div class="content">
+
+      <!-- EDITOR -->
+      <div class="editor-card">
+        <textarea placeholder="Опишите задание..."></textarea>
+
+        <div class="editor-divider"></div>
+
+        <div class="editor-toolbar">
+          <i class="fa-solid fa-plus"></i>
+          <span>Aa</span>
+          <i class="fa-solid fa-camera"></i>
+          <i class="fa-regular fa-image"></i>
+          <i class="fa-solid fa-microphone"></i>
+          <i class="fa-solid fa-arrows-rotate"></i>
+          <i class="fa-regular fa-face-smile"></i>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+      </div>
+
+      <!-- PARAMETERS -->
+      <div class="params-card">
+        <h2>Параметры задачи</h2>
+
+     <div class="param" id="assigneeParam">
+  <div class="param-left">
+    <i class="fa-regular fa-user"></i> 
+    <span id="assigneeLabel">Выбор исполнителя</span>
+  </div>
+<input type="checkbox" id="assigneeCheckbox" disabled>
+
+</div>
+
+<div class="param" id="deadlineParam">
+  <div class="param-left">
+    <i class="fa-regular fa-calendar"></i>
+    <span id="deadlineLabel">Установить дедлайн</span>
+  </div>
+ <input type="checkbox" id="deadlineCheckbox" disabled>
+</div>
+
+
+
+       <div class="param" id="budgetParam">
+  <div class="param-left">
+    <i class="fa-solid fa-wallet"></i>
+    <span id="budgetLabel">Добавить финансовый бюджет</span>
+  </div>
+  <input type="checkbox" id="budgetCheckbox" disabled>
+</div>
+
+
+    </div>
+  </main>
+
+</div>
+<!-- ASSIGNEE MODAL BACKDROP -->
+<div class="modal-backdrop" id="assigneeBackdrop"></div>
+
+<!-- ASSIGNEE MODAL -->
+<div class="assignee-modal" id="assigneeModal">
+  <h3>Назначить</h3>
+  <p>Выбор исполнителя</p>
+
+  <div class="assignee-search">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input
+      id="assigneeSearch"
+      type="text"
+      placeholder="Поиск..."
+    />
+  </div>
+
+  <div class="assignee-list" id="assigneeList">
+    <div class="assignee-item" data-name="Arman">
+      <span>Arman – Mid Front End Developer</span>
+      <span class="radio"></span>
+    </div>
+    <div class="assignee-item" data-name="Arailym">
+      <span>Arailym – UX/UI Designer</span>
+      <span class="radio"></span>
+    </div>
+    <div class="assignee-item" data-name="Algerim">
+      <span>Algerim – Product Manager</span>
+      <span class="radio"></span>
+    </div>
+  </div>
+
+  <div class="assignee-actions">
+    <button class="btn-outline" id="cancelAssignee">Отменить</button>
+    <button class="btn-primary" id="confirmAssignee">Выбрать</button>
+  </div>
+</div>
+
+
+<!-- DEADLINE BACKDROP -->
+<div class="modal-backdrop" id="deadlineBackdrop"></div>
+
+<!-- DEADLINE MODAL -->
+<div class="deadline-modal" id="deadlineModal">
+  <div class="calendar">
+    <div class="calendar-header">
+      <button id="prevMonth">&lsaquo;</button>
+      <span id="calendarTitle"></span>
+      <button id="nextMonth">&rsaquo;</button>
+    </div>
+
+    <div class="calendar-weekdays">
+      <span>Mo</span><span>Tu</span><span>We</span>
+      <span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+    </div>
+
+    <div class="calendar-days" id="calendarDays"></div>
+  </div>
+
+  <div class="assignee-actions">
+    <button class="btn-outline" id="cancelDeadline">Отменить</button>
+    <button class="btn-primary" id="confirmDeadline">Выбрать</button>
+  </div>
+</div>
+
+
+
+
+<!-- BUDGET BACKDROP -->
+<div class="modal-backdrop" id="budgetBackdrop"></div>
+
+<!-- BUDGET MODAL -->
+<div class="budget-modal" id="budgetModal">
+  <div class="budget-header">
+    <div>
+      <h3>Бюджет</h3>
+      <p>Добавить финансовый бюджет</p>
+    </div>
+    <button id="closeBudget" class="close-btn">✕</button>
+  </div>
+
+  <input
+    type="number"
+    id="budgetInput"
+    placeholder="Сумма"
+  />
+
+  <div class="assignee-actions">
+    <button class="btn-outline" id="cancelBudget">Отменить</button>
+    <button class="btn-primary" id="confirmBudget">Сохранить</button>
+  </div>
+</div>
+
+
+
+
+
+<script>
+const param = document.getElementById('assigneeParam');
+const modal = document.getElementById('assigneeModal');
+const backdrop = document.getElementById('assigneeBackdrop');
+const checkbox = document.getElementById('assigneeCheckbox');
+const label = document.getElementById('assigneeLabel');
+const items = document.querySelectorAll('.assignee-item');
+const search = document.getElementById('assigneeSearch');
+
+let selectedName = null;
+
+// Open modal
+param.addEventListener('click', () => {
+  modal.style.display = 'block';
+  backdrop.style.display = 'block';
+});
+
+// Select person
+items.forEach(item => {
+  item.addEventListener('click', () => {
+    items.forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    selectedName = item.dataset.name;
+  });
+});
+
+// Confirm
+document.getElementById('confirmAssignee').onclick = () => {
+  if (!selectedName) {
+    param.classList.add('error');
+    return;
+  }
+
+  checkbox.checked = true;
+  label.textContent = selectedName;
+  param.classList.remove('error');
+  closeModal();
+};
+
+// Cancel
+document.getElementById('cancelAssignee').onclick = closeModal;
+backdrop.onclick = closeModal;
+
+function closeModal() {
+  modal.style.display = 'none';
+  backdrop.style.display = 'none';
+}
+
+// Search
+search.addEventListener('input', e => {
+  const value = e.target.value.toLowerCase();
+  items.forEach(item => {
+    item.style.display = item.dataset.name.toLowerCase().includes(value)
+      ? 'flex'
+      : 'none';
+  });
+});
+</script>
+
+
+
+<script>
+const deadlineParam = document.getElementById('deadlineParam');
+const deadlineModal = document.getElementById('deadlineModal');
+const deadlineBackdrop = document.getElementById('deadlineBackdrop');
+const deadlineLabel = document.getElementById('deadlineLabel');
+const deadlineCheckbox = document.getElementById('deadlineCheckbox');
+
+const calendarTitle = document.getElementById('calendarTitle');
+const calendarDays = document.getElementById('calendarDays');
+
+let currentDate = new Date();
+let selectedDate = null;
+
+// Open modal
+deadlineParam.addEventListener('click', () => {
+  deadlineModal.style.display = 'block';
+  deadlineBackdrop.style.display = 'block';
+  renderCalendar();
+});
+
+// Render calendar
+function renderCalendar() {
+  calendarDays.innerHTML = '';
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  calendarTitle.textContent = currentDate.toLocaleString('en', {
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const firstDay = new Date(year, month, 1).getDay() || 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 1; i < firstDay; i++) {
+    calendarDays.innerHTML += `<span class="disabled"></span>`;
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const span = document.createElement('span');
+    span.textContent = day;
+
+    span.onclick = () => {
+      document.querySelectorAll('.calendar-days span')
+        .forEach(d => d.classList.remove('active'));
+
+      span.classList.add('active');
+      selectedDate = new Date(year, month, day);
+    };
+
+    calendarDays.appendChild(span);
+  }
+}
+
+// Month navigation
+document.getElementById('prevMonth').onclick = () => {
+  currentDate.setMonth(currentDate.getMonth() - 1);
+  renderCalendar();
+};
+
+document.getElementById('nextMonth').onclick = () => {
+  currentDate.setMonth(currentDate.getMonth() + 1);
+  renderCalendar();
+};
+
+// Confirm
+document.getElementById('confirmDeadline').onclick = () => {
+  if (!selectedDate) {
+    deadlineParam.classList.add('error');
+    return;
+  }
+
+  deadlineCheckbox.checked = true;
+  deadlineLabel.textContent = selectedDate.toLocaleDateString();
+  deadlineParam.classList.remove('error');
+  closeDeadline();
+};
+
+// Cancel
+document.getElementById('cancelDeadline').onclick = () => {
+  deadlineParam.classList.add('error');
+  closeDeadline();
+};
+
+deadlineBackdrop.onclick = closeDeadline;
+
+function closeDeadline() {
+  deadlineModal.style.display = 'none';
+  deadlineBackdrop.style.display = 'none';
+}
+</script>
+
+
+
+
+
+
+<script>
+const budgetParam = document.getElementById('budgetParam');
+const budgetModal = document.getElementById('budgetModal');
+const budgetBackdrop = document.getElementById('budgetBackdrop');
+const budgetInput = document.getElementById('budgetInput');
+const budgetCheckbox = document.getElementById('budgetCheckbox');
+const budgetLabel = document.getElementById('budgetLabel');
+
+// OPEN
+budgetParam.addEventListener('click', () => {
+  budgetModal.style.display = 'block';
+  budgetBackdrop.style.display = 'block';
+  budgetParam.classList.remove('error');
+});
+
+// CONFIRM
+document.getElementById('confirmBudget').onclick = () => {
+  if (!budgetInput.value) {
+    budgetParam.classList.add('error');
+    return;
+  }
+
+  budgetCheckbox.checked = true;
+  budgetLabel.textContent = `Бюджет: ${budgetInput.value} ₸`;
+  budgetParam.classList.remove('error');
+  closeBudget();
+};
+
+// CANCEL
+document.getElementById('cancelBudget').onclick = () => {
+  budgetParam.classList.add('error');
+  closeBudget();
+};
+
+// CLOSE ICON
+document.getElementById('closeBudget').onclick = () => {
+  budgetParam.classList.add('error');
+  closeBudget();
+};
+
+// BACKDROP
+budgetBackdrop.onclick = () => {
+  budgetParam.classList.add('error');
+  closeBudget();
+};
+
+function closeBudget() {
+  budgetModal.style.display = 'none';
+  budgetBackdrop.style.display = 'none';
+}
+</script>
+
+<script>
+const currentPage = location.pathname.split('/').pop().replace('.html', '');
+
+document.querySelectorAll('.menu-item').forEach(item => {
+  if (item.dataset.page === currentPage) {
+    item.classList.add('active');
+  }
+});
+</script>
+
+
+
+
+
+<script>
+const burger = document.getElementById('burger');
+const sidebar = document.querySelector('.sidebar');
+const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+burger.addEventListener('click', () => {
+  sidebar.classList.add('open');
+  sidebarBackdrop.classList.add('show');
+});
+
+sidebarBackdrop.addEventListener('click', closeSidebar);
+
+document.querySelectorAll('.menu-item').forEach(item => {
+  item.addEventListener('click', closeSidebar);
+});
+
+function closeSidebar() {
+  sidebar.classList.remove('open');
+  sidebarBackdrop.classList.remove('show');
+}
+</script>
+
+
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+
+</body>
+</html>

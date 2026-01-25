@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Иерархия</title>
+  
+</head>
+<style>* {
+  box-sizing: border-box;
+  font-family: Inter, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f7f3eb;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 240px;
+  background: #fff;
+  padding: 20px;
+  border-right: 1px solid #eee;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.sidebar nav a {
+  display: block;
+  padding: 10px;
+  color: #666;
+  cursor: pointer;
+}
+
+.sidebar nav a.active {
+  background: #fdecc8;
+  border-radius: 8px;
+  color: #000;
+}
+
+/* Content */
+.content {
+  flex: 1;
+  padding: 20px;
+  overflow: hidden;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.zoom-controls button {
+  font-size: 18px;
+  margin-left: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+/* Viewport */
+.viewport {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: 16px;
+  height: calc(100% - 80px);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Canvas (zoom target) */
+#canvas {
+  transform-origin: top center;
+  padding: 60px;
+}
+
+/* Rows */
+.row {
+  display: flex;
+  justify-content: center;
+  gap: 80px;
+  margin-bottom: 80px;
+}
+
+/* Card */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px #eee;
+  width: 260px;
+}
+
+.card.selected {
+  outline: 2px solid #4c6fff;
+}
+
+.card img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.card strong {
+  display: block;
+  font-size: 14px;
+}
+
+.card span {
+  font-size: 12px;
+  color: #777;
+}
+
+/* Status */
+.status {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.status.busy {
+  background: #ffe7b3;
+  color: #b57b00;
+}
+
+.status.free {
+  background: #dff5ea;
+  color: #0b8b5a;
+}
+
+
+
+
+
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 260px;
+  background: #FFFFFF;
+  padding: 24px;
+  border-right: 1px solid #EEE;
+}
+
+
+.logo {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 30px;
+}
+
+.menu-title {
+  font-size: 11px;
+  color: #9A9A9A;
+  margin: 20px 0 10px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.menu-item i {
+  width: 18px;
+}
+
+.menu-item.active {
+  background: #FFF2C2;
+  color: #000;
+}
+
+
+
+
+
+
+.menu-item {
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.menu-item:hover {
+  background: #FFF7DC;
+  color: #000;
+}
+
+.menu-item:hover i {
+  color: #C58A2A;
+}
+
+.menu-item.active {
+  background: #FFF2C2;
+  color: #000;
+  font-weight: 600;
+}
+
+.menu-item.active i {
+  color: #C58A2A;
+}
+
+
+</style>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="menu">
+      <div class="menu-title">ПРИБОРНАЯ ПАНЕЛЬ</div>
+
+      <a class="menu-item" href="index.html" data-page="index">
+        <i class="fa-solid fa-house"></i>Приборная панель
+      </a>
+
+      <a class="menu-item" href="calendar.html" data-page="calendar">
+        <i class="fa-regular fa-calendar"></i>Календарь
+      </a>
+
+      <a class="menu-item" href="tasks.html" data-page="tasks">
+        <i class="fa-regular fa-rectangle-list"></i>Мои задачи
+      </a>
+
+      <a class="menu-item active" href="addtask.html" data-page="addtask">
+        <i class="fa-regular fa-square-plus"></i>Добавить задачу
+      </a>
+
+      <a class="menu-item" href="Hierarchy.html" data-page="hierarchy">
+        <i class="fa-solid fa-sitemap"></i>Иерархия
+      </a>
+
+      <div class="menu-title">СТРАНИЦЫ</div>
+
+      <a class="menu-item" href="profile.html" data-page="profile">
+        <i class="fa-regular fa-user"></i>Профиль
+      </a>
+
+      <a class="menu-item" href="kpi.html" data-page="kpi">
+        <i class="fa-solid fa-chart-line"></i>KPI
+      </a>
+
+      <a class="menu-item" href="budget.html" data-page="budget">
+        <i class="fa-solid fa-wallet"></i>Финансовый бюджет
+      </a>
+
+      <a class="menu-item" href="faq.html" data-page="faq">
+        <i class="fa-regular fa-circle-question"></i>FAQs
+      </a>
+
+      <a class="menu-item" href="notes.html" data-page="notes">
+        <i class="fa-regular fa-note-sticky"></i>Заметка
+      </a>
+    </div>
+  </aside>
+
+
+
+  <!-- Main -->
+  <main class="content">
+    <header>
+      <h1>Иерархия</h1>
+
+      <div class="zoom-controls">
+        <button onclick="zoomOut()">−</button>
+        <button onclick="zoomIn()">+</button>
+      </div>
+    </header>
+
+    <!-- Zoomable Area -->
+    <div class="viewport">
+      <div id="canvas">
+        <!-- Level 1 -->
+        <div class="row">
+          <div class="card selected">
+            <img src="https://i.pravatar.cc/60" />
+            <div>
+              <strong>Генеральный директор</strong>
+              <span>Ахмет Осман</span>
+              <span class="status busy">Занят</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Level 2 -->
+        <div class="row">
+          <div class="card">
+            <img src="https://i.pravatar.cc/61" />
+            <div>
+              <strong>Генеральный директор</strong>
+              <span>Ахмет Осман</span>
+              <span class="status free">Свободен</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <img src="https://i.pravatar.cc/62" />
+            <div>
+              <strong>Генеральный директор</strong>
+              <span>Ахмет Осман</span>
+              <span class="status busy">Занят</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Level 3 -->
+        <div class="row">
+          <div class="card">
+            <img src="https://i.pravatar.cc/63" />
+            <div>
+              <strong>Генеральный директор</strong>
+              <span>Ахмет Осман</span>
+              <span class="status free">Свободен</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <img src="https://i.pravatar.cc/64" />
+            <div>
+              <strong>Генеральный директор</strong>
+              <span>Ахмет Осман</span>
+              <span class="status busy">Занят</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>const canvas = document.getElementById("canvas");
+let scale = 1;
+
+function applyZoom() {
+  canvas.style.transform = `scale(${scale})`;
+}
+
+function zoomIn() {
+  scale += 0.1;
+  applyZoom();
+}
+
+function zoomOut() {
+  scale = Math.max(0.4, scale - 0.1);
+  applyZoom();
+}
+
+// Mouse wheel zoom
+document.querySelector(".viewport").addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (e.deltaY < 0) zoomIn();
+  else zoomOut();
+});
+</script>
+</body>
+</html>
