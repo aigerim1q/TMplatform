@@ -26,7 +26,19 @@ func (de *DataEnricher) EnrichData(transformedData *ProjectStructure) *ProjectSt
 	}
 
 	enriched.Project.Metadata["extraction_date"] = time.Now().Format("2006-01-02T15:04:05Z07:00")
-	enriched.Project.Metadata["calculated_fields"] = de.calculateDerivedFields(transformedData)
+
+	// Calculate fields based on the enriched structure (so we work with the copy)
+	calculatedFields := de.calculateDerivedFields(&enriched)
+	enriched.Project.Metadata["calculated_fields"] = calculatedFields
+
+	// Fix for issue: "Project: Deadline is missing"
+	// If the Project.Deadline is empty, we infer it from the latest date found ("project_end").
+	if enriched.Project.Deadline == "" {
+		if projectEnd, ok := calculatedFields["project_end"].(string); ok {
+			enriched.Project.Deadline = projectEnd
+		}
+	}
+
 	enriched.Project.Metadata["data_quality_score"] = de.calculateDataQuality(transformedData)
 	enriched.Project.Metadata["complexity_metrics"] = de.calculateComplexityMetrics(transformedData)
 

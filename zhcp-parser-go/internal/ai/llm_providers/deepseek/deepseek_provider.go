@@ -31,7 +31,7 @@ func NewDeepSeekProvider(apiKey, model string) (*DeepSeekProvider, error) {
 		apiKey:  apiKey,
 		model:   model,
 		baseURL: "https://api.deepseek.com",
-		client:  &http.Client{Timeout: 60 * time.Second},
+		client:  &http.Client{Timeout: 300 * time.Second}, // Increased to 5 minutes
 	}, nil
 }
 
@@ -42,6 +42,7 @@ type ChatCompletionRequest struct {
 	Temperature    float32         `json:"temperature,omitempty"`
 	MaxTokens      int             `json:"max_tokens,omitempty"`
 	ResponseFormat *ResponseFormat `json:"response_format,omitempty"`
+	Stream         bool            `json:"stream,omitempty"`
 }
 
 // Message represents a message in the conversation
@@ -77,7 +78,8 @@ type Usage struct {
 
 // Generate generates a response from the DeepSeek API
 func (p *DeepSeekProvider) Generate(opts ai.GenerationOptions, prompt string) (*ai.LLMResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	// Increased timeout to 5 minutes to handle large documents and slow responses
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 
 	// Use the model from options if provided, otherwise use the default
@@ -111,6 +113,7 @@ func (p *DeepSeekProvider) Generate(opts ai.GenerationOptions, prompt string) (*
 		Temperature:    temperature,
 		MaxTokens:      maxTokens,
 		ResponseFormat: &ResponseFormat{Type: "json_object"},
+		Stream:         false,
 	}
 
 	requestBody, err := json.Marshal(request)

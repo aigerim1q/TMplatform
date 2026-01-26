@@ -261,6 +261,7 @@ func (p *ZhcpParser) getProjectJSONSchema() map[string]interface{} {
 				"properties": map[string]interface{}{
 					"title":       map[string]interface{}{"type": "string"},
 					"description": map[string]interface{}{"type": "string"},
+					"deadline":    map[string]interface{}{"type": []string{"string", "null"}},
 					"phases": map[string]interface{}{
 						"type": "array",
 						"items": map[string]interface{}{

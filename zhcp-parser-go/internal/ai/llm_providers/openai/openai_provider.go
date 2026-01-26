@@ -31,7 +31,7 @@ func NewOpenAIProvider(apiKey, model string) (*OpenAIProvider, error) {
 		apiKey:  apiKey,
 		model:   model,
 		baseURL: "https://api.openai.com/v1",
-		client:  &http.Client{Timeout: 60 * time.Second},
+		client:  &http.Client{Timeout: 300 * time.Second}, // 5 minutes for large documents
 	}, nil
 }
 
@@ -77,7 +77,8 @@ type Usage struct {
 
 // Generate generates a response from the OpenAI API
 func (p *OpenAIProvider) Generate(opts ai.GenerationOptions, prompt string) (*ai.LLMResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	// Increased timeout to 5 minutes for large documents
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 
 	// Use the model from options if provided, otherwise use the default
