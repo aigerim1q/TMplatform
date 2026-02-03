@@ -10,6 +10,7 @@ import { LLMClient } from '../llm/types';
 import { Context } from '../context/types';
 import { Chunk } from '../ingestion/types';
 import { createLLMClient } from './llmFactory';
+import { getChatbotApiUrl, sendToChatbot, ChatSession } from './chatApi';
 
 export class CLIInterface {
   private rl: readline.Interface;
@@ -22,6 +23,8 @@ export class CLIInterface {
   private retriever: Retriever;
   private llm: LLMClient;
   private groundingMode: 'strict' | 'hybrid' | 'general';
+  /** Session state for chatbot API (active project) when CHATBOT_API_URL is set */
+  private chatSession: ChatSession = { active_project_id: '', active_project_title: '' };
 
   constructor() {
     this.rl = readline.createInterface({
@@ -44,7 +47,11 @@ export class CLIInterface {
   }
 
   public async start(): Promise<void> {
+    const chatbotUrl = getChatbotApiUrl();
     console.log('🤖 Knowledge + Planning Bot - MVP');
+    if (chatbotUrl) {
+      console.log(`Connected to chatbot backend: ${chatbotUrl}`);
+    }
     console.log('Type commands starting with / or ask questions directly');
     console.log('Available commands: /project, /stage, /task, /context, /source, /mode, /help');
     console.log('Type /help for more information\n');
@@ -58,6 +65,26 @@ export class CLIInterface {
       if (trimmedInput.toLowerCase() === '/exit' || trimmedInput.toLowerCase() === '/quit') {
         console.log('Goodbye!');
         this.rl.close();
+        return;
+      }
+
+      // When CHATBOT_API_URL is set, forward all input to the Go chatbot backend
+      if (chatbotUrl) {
+        try {
+          const { reply, exit, session } = await sendToChatbot(chatbotUrl, trimmedInput, this.chatSession);
+          this.chatSession = session;
+          if (reply) {
+            console.log(reply);
+          }
+          if (exit) {
+            console.log('Goodbye!');
+            this.rl.close();
+            return;
+          }
+        } catch (err) {
+          console.error('Chatbot API error:', err instanceof Error ? err.message : err);
+        }
+        this.rl.prompt();
         return;
       }
 

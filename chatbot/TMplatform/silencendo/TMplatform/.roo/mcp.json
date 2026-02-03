@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "type": "stdio",
+      "command": "mcp-server-filesystem",
+      "args": [
+        "/Users/Yusuf/Documents"
+      ]
+    }
+  }
+}
