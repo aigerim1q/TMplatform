@@ -4,6 +4,10 @@
 /node_modules
 /frontend/node_modules/
 
+# build outputs
+/frontend/.next
+/frontend/out
+
 # next.js
 /.next/
 /out/
