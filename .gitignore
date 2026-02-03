@@ -22,6 +22,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# chatbot runtime state
+chatbot/.bot/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

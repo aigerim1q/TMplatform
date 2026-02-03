@@ -32,10 +32,10 @@ The **chatbot** in `chatbot/` provides:
 - HTTP API: `POST /api/chat`, `GET /api/health`, in-browser UI at `GET /chat`
 - Optional CLI frontend that uses the API when `CHATBOT_API_URL` is set
 
-### Run the chatbot backend (from repo root)
+### Run the chatbot backend
 
 ```bash
-./chatbot/TMplatform/run_chatbot_http.sh
+cd "$(git rev-parse --show-toplevel)" && ./chatbot/TMplatform/run_chatbot_http.sh
 ```
 
 Then open **http://localhost:8080/chat** for the in-browser chat, or use the main app’s Chat page (see below).
@@ -43,17 +43,21 @@ Then open **http://localhost:8080/chat** for the in-browser chat, or use the mai
 ### Run the main app with chatbot
 
 1. **Backend (platform API)**  
-   `cd backend && go mod tidy && go run ./cmd/server`  
+   ```bash
+   cd "$(git rev-parse --show-toplevel)/backend" && go mod tidy && go run ./cmd/server
+   ```  
    → http://localhost:3001
 
 2. **Chatbot backend (optional, for real AI chat)**  
-   `./chatbot/TMplatform/run_chatbot_http.sh`  
+   ```bash
+   cd "$(git rev-parse --show-toplevel)" && ./chatbot/TMplatform/run_chatbot_http.sh
+   ```  
    → http://localhost:8080
 
 3. **Frontend**  
-   `cd frontend` (or root if using root `package.json`)  
-   `printf "NEXT_PUBLIC_API_URL=http://localhost:3001\nNEXT_PUBLIC_CHATBOT_API_URL=http://localhost:8080\n" > .env.local`  
-   `pnpm install && pnpm dev`  
+   ```bash
+   cd "$(git rev-parse --show-toplevel)" && printf "NEXT_PUBLIC_API_URL=http://localhost:3001\nNEXT_PUBLIC_CHATBOT_API_URL=http://localhost:8080\n" > .env.local && pnpm install && pnpm dev
+   ```  
    → http://localhost:3000
 
 The **Chat** page in the app uses the chatbot when `NEXT_PUBLIC_CHATBOT_API_URL` is set; otherwise it uses the built-in demo.
@@ -65,16 +69,22 @@ The **Chat** page in the app uses the chatbot when `NEXT_PUBLIC_CHATBOT_API_URL`
 ```bash
 git clone https://github.com/aigerim1q/TMplatform.git
 cd TMplatform
-
-# Backend
-cd backend && go mod tidy && go run ./cmd/server
-# → http://localhost:3001
-
-# Frontend (new terminal)
-cd ../frontend
-printf "NEXT_PUBLIC_API_URL=http://localhost:3001\n" > .env.local
-pnpm install && pnpm dev
-# → http://localhost:3000
 ```
 
-For **Chatbot** as well, run `./chatbot/TMplatform/run_chatbot_http.sh` and set `NEXT_PUBLIC_CHATBOT_API_URL=http://localhost:8080` in `.env.local`.
+**Backend** (terminal 1):
+```bash
+cd "$(git rev-parse --show-toplevel)/backend" && go mod tidy && go run ./cmd/server
+```
+→ http://localhost:3001
+
+**Frontend** (terminal 2, replace path if your clone is elsewhere):
+```bash
+cd ~/TMplatform && printf "NEXT_PUBLIC_API_URL=http://localhost:3001\n" > .env.local && pnpm install && pnpm dev
+```
+→ http://localhost:3000
+
+For **Chatbot** as well:
+```bash
+cd ~/TMplatform && ./chatbot/TMplatform/run_chatbot_http.sh
+```
+Then add `NEXT_PUBLIC_CHATBOT_API_URL=http://localhost:8080` to `.env.local`.

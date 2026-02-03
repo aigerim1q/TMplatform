@@ -167,6 +167,20 @@ func (s *Server) handleChatPage(w http.ResponseWriter, r *http.Request) {
 </html>`))
 }
 
+// corsMiddleware adds CORS headers so the frontend (different port) can call the API.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Handler returns an http.Handler that serves the chat API.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -181,7 +195,7 @@ func (s *Server) Handler() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
-	return mux
+	return corsMiddleware(mux)
 }
 
 func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
