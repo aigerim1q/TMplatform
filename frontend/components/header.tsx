@@ -1,90 +1,77 @@
 'use client';
 
-import Image from 'next/image';
-import { Bell, Moon, Sun } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { MessageCircle, Moon } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import ChatModal from './chat-modal';
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
-
-  const nav = [
-    { label: 'Календарь', href: '/calendar' },
-    { label: 'Иерархия', href: '/hierarchy' },
-    { label: 'Дашборд', href: '/dashboard' },
-    { label: 'ЖЦП', href: '/lifecycle' },
-  ];
-
-  const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href);
-
-  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  const isLifecyclePage = pathname === '/lifecycle';
+  const isDashboard = pathname === '/dashboard' || pathname === '/';
+  const isHierarchy = pathname === '/hierarchy';
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
 
   return (
-    <div className="flex w-full justify-center bg-transparent py-6">
-      <header className="flex w-[92%] max-w-6xl items-center justify-between rounded-full border border-slate-200 bg-white px-8 py-4 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900">
+    <>
+      <header className="inline-flex items-center gap-8 rounded-full border border-gray-200 bg-white px-6 py-3 shadow-sm">
         {/* Logo */}
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="flex items-center gap-3 rounded-full px-2 py-1 text-left transition hover:opacity-80"
-          aria-label="На дашборд"
-        >
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FEC42E] text-sm font-black text-white shadow-sm">
+        <div className="flex items-center gap-1">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 font-bold text-white text-[10px]">
             THE
           </div>
-          <span className="text-xl font-semibold text-slate-900 dark:text-white">QURYLS</span>
-        </button>
+          <span className="text-sm font-semibold text-amber-500">QURYLYS</span>
+        </div>
 
         {/* Navigation */}
-        <nav className="flex items-center gap-8 text-sm">
-          {nav.map((item) => (
-            <button
-              key={item.href}
-              onClick={() => router.push(item.href)}
-              className={`transition-colors ${isActive(item.href)
-                ? 'font-extrabold text-slate-900 underline decoration-2 underline-offset-[8px] dark:text-white'
-                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'}`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <nav className="flex items-center gap-6">
+          <a href="#" className="text-sm text-gray-600 hover:text-gray-900">
+            Календар
+          </a>
+          <button
+            onClick={() => router.push('/hierarchy')}
+            className={`text-sm ${isHierarchy ? 'font-semibold text-gray-900 underline underline-offset-4' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            Иерархия
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className={`text-sm ${isDashboard ? 'font-semibold text-gray-900 underline underline-offset-4' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            Дашборд
+          </button>
+          <button 
+            onClick={() => router.push('/lifecycle')}
+            className={`text-sm ${isLifecyclePage ? 'font-semibold text-gray-900 underline underline-offset-4' : 'text-gray-600 hover:text-gray-900'}`}
+          >
+            ЖЦП
+          </button>
         </nav>
 
         {/* Right Icons */}
-        <div className="flex items-center gap-4">
-          <button className="text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:text-white" aria-label="Уведомления">
-            <Bell size={20} />
-          </button>
-
-          <button
-            onClick={toggleTheme}
-            className="text-slate-500 hover:text-slate-900 transition-colors dark:text-slate-300 dark:hover:text-white"
-            aria-label="Переключить тему"
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setIsChatModalOpen(true)}
+            className="relative text-red-400 hover:text-red-500"
           >
-            {mounted && theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            <MessageCircle size={22} fill="currentColor" />
           </button>
-
-          <button
-            onClick={() => router.push("/profile")}
-            className="relative h-10 w-10 overflow-hidden rounded-full border border-slate-200 bg-gray-100 transition hover:ring-2 hover:ring-amber-300 dark:border-slate-700"
-            aria-label="Профиль"
-          >
-            <Image
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=128&h=128&q=80"
+          <button className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-white">
+            <Moon size={16} />
+          </button>
+          <button className="h-8 w-8 overflow-hidden rounded-full ring-2 ring-gray-200">
+            <img
+              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
               alt="User avatar"
-              fill
-              unoptimized
-              sizes="40px"
-              className="object-cover"
+              className="h-full w-full object-cover"
             />
           </button>
         </div>
       </header>
-    </div>
+
+      {/* Chat Modal */}
+      <ChatModal isOpen={isChatModalOpen} onClose={() => setIsChatModalOpen(false)} />
+    </>
   );
 }

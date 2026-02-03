@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Trash2, Plus, Calendar } from 'lucide-react';
@@ -53,9 +52,9 @@ export default function EditProjectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="flex w-screen justify-center border-b border-gray-200 bg-gray-50 py-4">
+    <div className="min-h-screen bg-white">
+      {/* Header - centered */}
+      <div className="flex justify-center pt-6">
         <Header />
       </div>
 
@@ -71,14 +70,11 @@ export default function EditProjectPage() {
 
         {/* Project Header */}
         <div className="flex gap-6 mb-8">
-          <div className="w-40 h-40 rounded-2xl overflow-hidden flex-shrink-0 relative">
-            <Image
+          <div className="w-40 h-40 rounded-2xl overflow-hidden flex-shrink-0">
+            <img
               src={`https://images.unsplash.com/photo-${projectId === 'shyraq' ? '1486325212027' : projectId === 'ansau' ? '1486406146926' : '1486312338219'}?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80`}
               alt={projectName}
-              fill
-              unoptimized
-              sizes="160px"
-              className="object-cover"
+              className="w-full h-full object-cover"
             />
           </div>
           <div className="flex-1">

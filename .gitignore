@@ -2,6 +2,23 @@
 
 # dependencies
 /node_modules
+/frontend/node_modules/
+
+# build outputs
+/frontend/.next
+/frontend/out
+
+# backups
+/frontend/_backup_pre_merge/
+
+# uploads
+/uploads/
+
+# docs binaries
+*.docx
+
+# macOS
+.DS_Store
 
 # next.js
 /.next/

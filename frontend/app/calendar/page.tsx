@@ -1,69 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
 import { AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock, Flag, MapPin } from "lucide-react";
+import { fetchJson } from "@/lib/api";
 
 type CalendarEvent = {
   id: string;
-  project: string;
+  projectId: number;
+  projectName: string;
   title: string;
   date: string; // ISO date (YYYY-MM-DD)
   status: "deadline" | "milestone" | "risk";
   location?: string;
 };
 
-const calendarEvents: CalendarEvent[] = [
-  {
-    id: "1",
-    project: "Shyraq",
-    title: "Сдача проектной документации",
-    date: "2026-01-28",
-    status: "deadline",
-    location: "Астана"
-  },
-  {
-    id: "2",
-    project: "Ansau",
-    title: "Поставка лифтового оборудования",
-    date: "2026-01-15",
-    status: "milestone",
-    location: "Алматы"
-  },
-  {
-    id: "3",
-    project: "Dariya",
-    title: "Ревью фасадных решений",
-    date: "2026-02-03",
-    status: "risk",
-    location: "Шымкент"
-  },
-  {
-    id: "4",
-    project: "Qulan",
-    title: "Закуп бетона, лот 2",
-    date: "2026-01-10",
-    status: "deadline",
-    location: "Актобе"
-  },
-  {
-    id: "5",
-    project: "Alem",
-    title: "Монтаж инженерных сетей, этап 1",
-    date: "2026-01-22",
-    status: "milestone",
-    location: "Астана"
-  },
-  {
-    id: "6",
-    project: "Shanyrak",
-    title: "Подписание акта КС-2",
-    date: "2026-02-12",
-    status: "deadline",
-    location: "Караганда"
-  }
-];
+type Project = {
+  id: number;
+  name: string;
+  end_date?: string | null;
+  start_date?: string | null;
+};
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -109,8 +67,33 @@ export default function CalendarPage() {
   const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const todayKey = dateKey(new Date());
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
   const days = useMemo(() => buildMonthDays(currentMonth), [currentMonth]);
+
+  useEffect(() => {
+    async function loadProjectDeadlines() {
+      try {
+        const res = await fetchJson<any>(`/projects`);
+        const items: Project[] = Array.isArray(res) ? res : res?.items || [];
+        const mapped = items
+          .filter((p) => p.end_date)
+          .map((p) => ({
+            id: `project-${p.id}`,
+            projectId: p.id,
+            projectName: p.name,
+            title: "Дедлайн проекта",
+            date: (p.end_date || "").slice(0, 10),
+            status: "deadline" as const,
+          }));
+        setCalendarEvents(mapped);
+      } catch (err) {
+        console.error("Failed to load project deadlines", err);
+        setCalendarEvents([]);
+      }
+    }
+    loadProjectDeadlines();
+  }, []);
 
   const eventsByDay = useMemo(() => {
     return calendarEvents.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
@@ -118,16 +101,16 @@ export default function CalendarPage() {
       acc[key] = acc[key] ? [...acc[key], event] : [event];
       return acc;
     }, {});
-  }, []);
+  }, [calendarEvents]);
 
   const eventsThisMonth = useMemo(
     () => calendarEvents.filter((evt) => sameMonth(new Date(`${evt.date}T00:00:00`), currentMonth)),
-    [currentMonth]
+    [calendarEvents, currentMonth]
   );
 
   const upcoming = useMemo(() => {
     return [...calendarEvents].sort((a, b) => a.date.localeCompare(b.date));
-  }, []);
+  }, [calendarEvents]);
 
   const monthLabel = currentMonth.toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
 
@@ -247,13 +230,13 @@ export default function CalendarPage() {
                       {eventsForDay.slice(0, 2).map((evt) => (
                         <div
                           key={evt.id}
-                          onClick={() => router.push(`/project/${evt.project.toLowerCase()}/preview`)}
+                          onClick={() => router.push(`/project/${evt.projectId}`)}
                           className={`truncate rounded-xl px-2 py-1 text-[11px] font-semibold ring-1 transition hover:opacity-80 ${statusStyles[evt.status]}`}
                           role="button"
-                          aria-label={`Открыть проект ${evt.project}`}
-                          title={`${evt.title} · ${evt.project}`}
+                          aria-label={`Открыть проект ${evt.projectName}`}
+                          title={`${evt.title} · ${evt.projectName}`}
                         >
-                          {evt.project}: {evt.title}
+                          {evt.projectName}: {evt.title}
                         </div>
                       ))}
                       {eventsForDay.length > 2 && (
@@ -276,14 +259,14 @@ export default function CalendarPage() {
               {upcoming.map((evt) => (
                 <div
                   key={evt.id}
-                  onClick={() => router.push(`/project/${evt.project.toLowerCase()}/preview`)}
+                  onClick={() => router.push(`/project/${evt.projectId}`)}
                   className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
                   role="button"
-                  aria-label={`Открыть проект ${evt.project}`}
+                  aria-label={`Открыть проект ${evt.projectName}`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{evt.project}</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{evt.projectName}</p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">{evt.title}</p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ring-1 ${statusStyles[evt.status]}`}>

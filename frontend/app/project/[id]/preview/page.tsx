@@ -1,243 +1,231 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Plus, Sparkles } from "lucide-react";
-import Header from "@/components/header";
-
-type ProjectKey = "shyraq" | "ansau" | "dariya";
-
-type Stage = {
-  title: string;
-  subtitle?: string;
-  status: "done" | "progress" | "delay";
-  delay?: string;
-};
-
-type Section = {
-  title: string;
-  statusLabel: string;
-  statusColor: string;
-  tasks: Stage[];
-};
+import { useRouter, useParams } from 'next/navigation';
+import { CheckCircle2, Edit2 } from 'lucide-react';
+import Header from '@/components/header';
 
 export default function ProjectPreview() {
   const router = useRouter();
   const params = useParams();
 
-  const paramId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const projectKey: ProjectKey =
-    paramId === "ansau" ? "ansau" : paramId === "dariya" ? "dariya" : "shyraq";
-
-  const projectMeta: Record<ProjectKey, { name: string; image: string; finance: string }> = {
+  const projectData = {
     shyraq: {
-      name: "Shyraq",
-      image:
-        "https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&w=900&q=80",
-      finance: "1,500,900,000/2,400,800,000",
+      name: 'Shyraq',
+      image: 'https://images.unsplash.com/photo-1486325212027-8081e485255e?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200',
+      description: 'Искусственный интеллект проанализировал ваш документ и сформировал структуру жилищного цикла проекта. Проверьте данные ниже.',
+      document: {
+        name: 'Техническое_задание_Shyraq.pdf',
+        size: '2.4 MB',
+      },
+      deadline: '15 сентября 2025',
+      model: 'Смета (Fixed Price)',
+      stages: [
+        { number: 1, title: 'Подготовительный этап и мобилизация ресурсов', duration: '14 дней' },
+        { number: 2, title: 'Разработка и утверждение проектно-сметной документации', duration: '45 дней' },
+        { number: 3, title: 'Закупка материалов и оборудования', duration: '30 дней' },
+        { number: 4, title: 'Строительно-монтажные работы (СМР)', duration: '180 дней' },
+        { number: 5, title: 'Пусконаладочные работы и тестирование систем', duration: '21 день' },
+        { number: 6, title: 'Ввод в эксплуатацию и передача заказчику', duration: '10 дней' },
+      ],
+      team: [
+        { name: 'Омар Ахмет', role: 'РУКОВОДИТЕЛЬ ПРОЕКТА', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' },
+        { name: 'Расул Даулетов', role: 'ТЕХНИЧЕСКИЙ ДИРЕКТОР', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop' },
+        { name: 'Айдын Рахимбаев', role: 'ГЛАВНЫЙ ИНЖЕНЕР', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop' },
+      ],
     },
     ansau: {
-      name: "Ansau",
-      image:
-        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80",
-      finance: "980,200,000/1,800,000,000",
+      name: 'Ansau',
+      image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200',
+      description: 'Проект успешно загружен и обработан AI системой.',
+      document: { name: 'Документация_Ansau.pdf', size: '1.8 MB' },
+      deadline: '20 октября 2025',
+      model: 'Смета (Fixed Price)',
+      stages: [
+        { number: 1, title: 'Подготовка площадки', duration: '10 дней' },
+        { number: 2, title: 'Проектирование', duration: '30 дней' },
+        { number: 3, title: 'Согласование', duration: '15 дней' },
+        { number: 4, title: 'Строительство', duration: '120 дней' },
+        { number: 5, title: 'Отделочные работы', duration: '45 дней' },
+        { number: 6, title: 'Сдача объекта', duration: '5 дней' },
+      ],
+      team: [
+        { name: 'Айтурган Сатпаева', role: 'РУКОВОДИТЕЛЬ ПРОЕКТА', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' },
+        { name: 'Мария Иванова', role: 'АРХИТЕКТОР', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop' },
+        { name: 'Максим Петров', role: 'ИНЖЕНЕР', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop' },
+      ],
     },
     dariya: {
-      name: "Dariya",
-      image:
-        "https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=900&q=80",
-      finance: "640,000,000/1,200,000,000",
+      name: 'Dariya',
+      image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200',
+      description: 'Проект успешно загружен и проанализирован AI системой.',
+      document: { name: 'Спецификация_Dariya.pdf', size: '3.2 MB' },
+      deadline: '25 ноября 2025',
+      model: 'Смета (Fixed Price)',
+      stages: [
+        { number: 1, title: 'Инициирование', duration: '7 дней' },
+        { number: 2, title: 'Планирование', duration: '20 дней' },
+        { number: 3, title: 'Проектирование', duration: '40 дней' },
+        { number: 4, title: 'Строительство', duration: '100 дней' },
+        { number: 5, title: 'Тестирование', duration: '15 дней' },
+        { number: 6, title: 'Запуск', duration: '7 дней' },
+      ],
+      team: [
+        { name: 'Дарья Смирнова', role: 'РУКОВОДИТЕЛЬ ПРОЕКТА', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' },
+        { name: 'Артем Морозов', role: 'АНАЛИТИК', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop' },
+        { name: 'Елена Волкова', role: 'КООРДИНАТОР', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop' },
+      ],
     },
   };
 
-  const sections: Section[] = [
-    {
-      title: "I. Предпроектная подготовка (до начала проектирования)",
-      statusLabel: "Задержка: 5 дней",
-      statusColor: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-100",
-      tasks: [
-        {
-          title: "1. Инициирование проекта",
-          subtitle: "Определение ориентированной площади и этажности, Анализ потребностей рынка...",
-          status: "done",
-        },
-        {
-          title: "2. Финансово-экономический анализ",
-          subtitle: "Прогноз стоимости строительства, Расчёт рентабельности проекта (ROI)...",
-          status: "delay",
-          delay: "Задержка: 5 дней",
-        },
-      ],
-    },
-    {
-      title: "II. Проектирование (архитектура, инженерия, дизайн)",
-      statusLabel: "Выполнено",
-      statusColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100",
-      tasks: [
-        {
-          title: "1. Архитектурная концепция",
-          subtitle: "Концептуальный проект здания, Общее планировочное решение...",
-          status: "done",
-        },
-        {
-          title: "2. Инженерные разделы",
-          subtitle: "Конструктив (фундамент, колонны, плиты), Электроснабжение...",
-          status: "done",
-        },
-        {
-          title: "3. Дизайн интерьера и фасадов",
-          subtitle: "Интерьеры подъездов и этажей, Интерьеры квартир...",
-          status: "done",
-        },
-      ],
-    },
-    {
-      title: "III. Строительный этап",
-      statusLabel: "25 дней",
-      statusColor: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100",
-      tasks: [
-        {
-          title: "1. Подготовка площадки",
-          subtitle: "Ограживание участка, Установка бытовок и складов...",
-          status: "done",
-        },
-        {
-          title: "2. Фундаментные работы",
-          subtitle: "Геодезическая разбивка, Рытьё котлована, Подготовка основания...",
-          status: "done",
-        },
-        {
-          title: "3. Возведение колонн на 13 этаже",
-          subtitle: "Интерьеры подъездов и этажей. Перед началом работ нужно провести подготовку...",
-          status: "delay",
-          delay: "-9 часов",
-        },
-      ],
-    },
-  ];
-
-  const project = projectMeta[projectKey];
-
-  const badge = (text: string, className: string) => (
-    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${className}`}>
-      {text}
-    </span>
-  );
-
-  const statusBadge = (task: Stage) => {
-    if (task.status === "done") return badge("Выполнено", "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100");
-    if (task.status === "delay")
-      return badge(task.delay || "Задержка", "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-100");
-    return badge("В работе", "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-100");
-  };
+  const project = projectData[params.id] || projectData.shyraq;
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
-      <div className="flex w-screen justify-center border-b border-gray-200 bg-white py-4 dark:border-slate-800 dark:bg-slate-950">
+    <div className="min-h-screen bg-white">
+      {/* Header - centered */}
+      <div className="flex justify-center pt-6">
         <Header />
       </div>
 
-      <main className="mx-auto max-w-6xl px-6 py-8 space-y-8">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
-          >
-            <ArrowLeft className="h-4 w-4" /> Назад
-          </button>
-          <div className="flex flex-wrap gap-2">
-            {badge("Задача", "bg-black text-white dark:bg-white dark:text-black")}
-            {badge("Отчеты", "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900")}
+      {/* Main Content */}
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        {/* Back Button */}
+        <button onClick={() => router.back()} className="flex items-center gap-2 mb-6 px-4 py-2 rounded-full bg-yellow-100 text-gray-900 hover:bg-yellow-200 transition-colors text-sm font-semibold">
+          ← Назад
+        </button>
+
+        {/* Project Header */}
+        <div className="flex gap-6 mb-8">
+          <img src={project.image || "/placeholder.svg"} alt={project.name} className="w-40 h-40 rounded-2xl object-cover" />
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <span className="text-xs font-semibold text-purple-600">AI Обработка завершена</span>
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Проект: {project.name}</h1>
+            <p className="text-gray-600 text-sm">{project.description}</p>
           </div>
         </div>
 
-        {/* Hero */}
-        <div className="flex flex-col gap-4 rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800 sm:flex-row">
-          <div className="relative h-36 w-full overflow-hidden rounded-2xl sm:w-52">
-            <Image
-              src={project.image}
-              alt={project.name}
-              fill
-              unoptimized
-              sizes="(max-width: 640px) 100vw, 208px"
-              className="object-cover"
-            />
-          </div>
-          <div className="flex-1 space-y-3">
-            <h1 className="text-2xl font-bold">Проект: {project.name}</h1>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              {badge("Финансы: " + project.finance, "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-100")}
-              {badge("Отчеты расходов", "bg-black text-white dark:bg-white dark:text-black")}
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">
-                ⏱ Дедлайн: 12.12.2025 23:59 (25 дней)
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">
-                ▶ Дата начала: 9.06.2025 12:00
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">
-                Ответственные: Омар Ахмет, Зейнула Рышым, Серик Рахым...
-              </div>
-              <button
-                onClick={() => router.push("/chat")}
-                className="inline-flex items-center gap-2 rounded-full bg-black px-3 py-1 text-xs font-semibold text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90"
-              >
-                <Sparkles className="h-4 w-4" /> AI: Причины отсрочки →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Sections */}
-        <div className="space-y-8">
-          {sections.map((section, idx) => (
-            <div key={section.title} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 text-sm font-semibold">
-                  <span className="inline-flex h-8 items-center rounded-full bg-slate-900 px-4 text-white dark:bg-white dark:text-slate-900">
-                    {section.title}
-                  </span>
-                  {badge(section.statusLabel, section.statusColor)}
+        {/* Content Grid */}
+        <div className="grid grid-cols-3 gap-6">
+          {/* Left Column */}
+          <div className="col-span-2 space-y-6">
+            {/* Document Card */}
+            <div className="border-2 border-purple-300 rounded-3xl p-6 bg-purple-50">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-6 h-6 text-purple-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900 mb-1">AI успешно обработал ваш документ</h3>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                    <span className="text-red-500">📄</span>
+                    <span>{project.document.name}</span>
+                    <span className="text-gray-500">{project.document.size}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90">
-                    <Plus className="h-4 w-4" /> Добавить задачу
-                  </button>
-                  <button className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90" aria-label="Навигация">
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
+                <button className="text-gray-400 hover:text-gray-600 text-sm">⟲ Заменить файл</button>
+              </div>
+            </div>
+
+            {/* Parameters */}
+            <div className="border border-gray-200 rounded-3xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M9 2a1 1 0 000 2h2V2H9zm0 1h2v13H9V3zm4-1a1 1 0 000 2h2V2h-2zm0 1h2v13h-2V3zm4-1a1 1 0 100 2h2V2h-2zm0 1h2v13h-2V3z" /></svg>
+                  Параметры из документа
+                </h3>
+                <span className="text-xs font-semibold text-gray-500 uppercase">Автозаполнение</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <span className="text-xs text-gray-500 uppercase">Срок завершения (дедлайн)</span>
+                  <p className="text-lg font-bold text-gray-900 mt-2">{project.deadline}</p>
+                  <p className="text-xs text-gray-500 mt-1">Примерно за 360 дней</p>
+                </div>
+                <div>
+                  <span className="text-xs text-gray-500 uppercase">Финансовая модель</span>
+                  <p className="text-lg font-bold text-gray-900 mt-2">{project.model}</p>
+                  <p className="text-xs text-gray-500 mt-1">Определено по 12 проектов</p>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {section.tasks.map((task, tIdx) => (
-                  <div
-                    key={task.title + tIdx}
-                    className="flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 dark:border-slate-800 dark:bg-slate-900"
-                  >
-                    <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
-                      <span>Проект: {project.name}</span>
-                      {statusBadge(task)}
+              <p className="text-xs text-gray-500 mb-4">ЭТАПЫ ПРОЕКТА (ЖЦП)</p>
+              <p className="text-right text-xs text-gray-500 mb-4">Надаю этапов: 6</p>
+
+              {/* Stages List */}
+              <div className="space-y-3">
+                {project.stages.map((stage) => (
+                  <div key={stage.number} className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 group">
+                    <span className="text-sm font-semibold text-gray-600 min-w-6">{stage.number}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{stage.title}</p>
+                      <p className="text-xs text-gray-500">Срок: {stage.duration}</p>
                     </div>
-                    <div className="mt-3 space-y-2">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{task.title}</h3>
-                      {task.subtitle && <p className="text-xs text-slate-600 dark:text-slate-300">{task.subtitle}</p>}
-                    </div>
+                    <button className="text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
                   </div>
                 ))}
               </div>
 
-              {idx === sections.length - 1 && (
-                <div className="mt-5 flex justify-center">
-                  <button className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90">
-                    <Plus className="h-4 w-4" /> Добавить этап проекта
-                  </button>
-                </div>
-              )}
+              {/* Add Stage Button */}
+              <button className="w-full mt-4 text-center text-gray-400 hover:text-gray-600 text-sm py-2 border border-dashed border-gray-300 rounded-lg transition-colors">
+                + Добавить новый этап
+              </button>
             </div>
-          ))}
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 mt-8">
+              <button className="flex-1 bg-yellow-200 hover:bg-yellow-300 text-gray-900 font-semibold py-3 rounded-2xl transition-colors">
+                Подтвердить и продолжить ✓
+              </button>
+              <button 
+                onClick={() => router.push(`/project/${params.id}/edit`)}
+                className="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-900 font-semibold py-3 rounded-2xl transition-colors"
+              >
+                Редактировать
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Team Recommendations */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                Рекомендуемые ответственные
+                <span className="text-blue-500">✓</span>
+              </h3>
+              <div className="space-y-3">
+                {project.team.map((member, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <img src={member.avatar || "/placeholder.svg"} alt={member.name} className="w-10 h-10 rounded-full object-cover" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{member.name}</p>
+                      <p className="text-xs text-gray-500 uppercase">{member.role}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-600 mt-4">AI подобрал сотрудников на основе опыта в аналогичных проектах и текущей загрузки.</p>
+            </div>
+
+            {/* Control Accuracy */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                💖 Контроль точности
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">Точность распознавания</p>
+              <div className="w-full bg-gray-300 rounded-full h-2 mb-4">
+                <div className="bg-yellow-400 h-2 rounded-full" style={{ width: '98%' }}></div>
+              </div>
+              <p className="text-xs text-gray-500 text-center">98%</p>
+              <p className="text-xs text-gray-600 mt-4">Все этапы были согласованы с внутренним регламентом качества.</p>
+              <button className="w-full mt-4 bg-yellow-200 hover:bg-yellow-300 text-gray-900 font-semibold py-2 rounded-full text-sm transition-colors">
+                ⬇ Скачать структуру ЖЦП
+              </button>
+            </div>
+          </div>
         </div>
       </main>
     </div>

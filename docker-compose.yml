@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:15
+    container_name: tmplatform_db
+    environment:
+      POSTGRES_USER: tmplatform
+      POSTGRES_PASSWORD: tmplatform
+      POSTGRES_DB: tmplatform
+    ports:
+      - "5432:5432"
+    volumes:
+      - tmplatform_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tmplatform -d tmplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: postgres:15
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/migrations:/migrations:ro
+    environment:
+      PGPASSWORD: tmplatform
+    command: >
+      bash -c "
+        for f in /migrations/*.sql; do
+          echo \"Applying $$f\";
+          psql -h db -U tmplatform -d tmplatform -f $$f;
+        done
+      "
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      APP_PORT: "3001"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: tmplatform
+      DB_USER: tmplatform
+      DB_PASSWORD: tmplatform
+      JWT_SECRET: new_secret_reset_tokens_2026
+      JWT_TTL_MIN: "60"
+    volumes:
+      - ./uploads:/app/uploads
+    ports:
+      - "3001:3001"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+
+volumes:
+  tmplatform_pgdata:

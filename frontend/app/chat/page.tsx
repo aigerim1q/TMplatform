@@ -1,30 +1,22 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Send } from "lucide-react";
-import Header from "@/components/header";
-import Sidebar from "@/components/sidebar";
-
-type ProjectKey = 'shyraq' | 'ansau' | 'dariya';
-
-type ChatMessage = {
-  type: 'ai' | 'user';
-  text: string;
-  project?: ProjectKey;
-};
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Send, FileText } from 'lucide-react';
+import Header from '@/components/header';
+import Sidebar from '@/components/sidebar';
 
 export default function ChatPage() {
   const router = useRouter();
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState([
     {
-      type: "ai",
-      text: "Привет! Я твой AI помощник. Ты можешь спросить меня о любом проекте, и я дам тебе информацию. Попробуй написать например \"Расскажи о проекте Shyraq\"",
+      type: 'ai',
+      text: 'Привет! Я твой AI помощник. Ты можешь спросить меня о любом проекте, и я дам тебе информацию. Попробуй написать например "Расскажи о проекте Shyraq"',
     },
   ]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,12 +26,7 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  const projects: Record<ProjectKey, {
-    name: string;
-    description: string;
-    fileName: string;
-    fileSize: string;
-  }> = {
+  const projects = {
     shyraq: {
       name: 'Shyraq',
       description: 'Искусственный интеллект проанализировал ваш документ и сформировал структуру жилищного цикла проекта.',
@@ -60,40 +47,43 @@ export default function ChatPage() {
     },
   };
 
-  const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSendMessage = (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
+    // Add user message
     const userMessage = input.toLowerCase();
-    setMessages((prev) => [...prev, { type: "user", text: input }]);
-    setInput("");
+    setMessages((prev) => [...prev, { type: 'user', text: input }]);
+    setInput('');
     setIsLoading(true);
 
+    // Simulate AI response delay
     setTimeout(() => {
-      let aiResponse: ChatMessage;
+      let aiResponse = null;
 
-      if (userMessage.includes("shyraq")) {
+      // Check if user asked about a specific project
+      if (userMessage.includes('shyraq')) {
         aiResponse = {
-          type: "ai",
-          text: "Вот информация о проекте Shyraq:",
-          project: "shyraq",
+          type: 'ai',
+          text: 'Вот информация о проекте Shyraq:',
+          project: 'shyraq',
         };
-      } else if (userMessage.includes("ansau")) {
+      } else if (userMessage.includes('ansau')) {
         aiResponse = {
-          type: "ai",
-          text: "Вот информация о проекте Ansau:",
-          project: "ansau",
+          type: 'ai',
+          text: 'Вот информация о проекте Ansau:',
+          project: 'ansau',
         };
-      } else if (userMessage.includes("dariya")) {
+      } else if (userMessage.includes('dariya')) {
         aiResponse = {
-          type: "ai",
-          text: "Вот информация о проекте Dariya:",
-          project: "dariya",
+          type: 'ai',
+          text: 'Вот информация о проекте Dariya:',
+          project: 'dariya',
         };
       } else {
         aiResponse = {
-          type: "ai",
-          text: "Я помогу тебе! Напиши название проекта, например \"Shyraq\", \"Ansau\" или \"Dariya\".",
+          type: 'ai',
+          text: 'Я помогу тебе! Напиши название проекта, например "Shyraq", "Ansau" или "Dariya".',
         };
       }
 
@@ -102,66 +92,70 @@ export default function ChatPage() {
     }, 500);
   };
 
-  const handleProjectClick = (projectId: string) => {
+  const handleProjectClick = (projectId) => {
     router.push(`/project/${projectId}/preview`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
-      <div className="flex w-screen justify-center border-b border-gray-200 bg-white py-4 dark:border-slate-800 dark:bg-slate-950">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="flex w-screen justify-center border-b border-gray-200 bg-gray-50 py-4">
         <Header />
       </div>
 
+      {/* Main Layout with Sidebar */}
       <div className="flex">
         <Sidebar />
-
-        <main className="flex-1">
-          <div className="mx-auto flex min-h-[calc(100vh-140px)] max-w-5xl flex-col px-6 py-8 lg:px-10">
-            <div className="mb-6 flex justify-center">
-              <div className="relative max-w-3xl rounded-3xl bg-white px-6 py-4 text-sm leading-relaxed shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-                Привет! Я твой AI помощник. Ты можешь спросить меня о любом проекте, и я дам тебе информацию. Попробуй написать, например, «Расскажи о проекте Shyraq».
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                  ⏱ Время ответа: ~4 минуты
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-4 overflow-y-auto rounded-3xl bg-white/90 p-6 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900/80 dark:ring-slate-800">
+        
+        {/* Chat Content */}
+        <main className="flex-1 flex flex-col">
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="max-w-3xl mx-auto space-y-4">
               {messages.map((message, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
-                >
+                <div key={idx} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-2xl rounded-3xl px-5 py-4 text-sm leading-relaxed shadow-sm transition ${
-                      message.type === "user"
-                        ? "bg-amber-400 text-slate-900 dark:bg-amber-500 dark:text-slate-950"
-                        : "bg-slate-100 text-slate-900 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-50 dark:ring-slate-700"
+                    className={`max-w-xl ${
+                      message.type === 'user'
+                        ? 'bg-purple-500 text-white rounded-3xl px-6 py-3'
+                        : 'bg-white text-gray-900 rounded-3xl px-6 py-4 border border-gray-200 space-y-3'
                     }`}
                   >
-                    <p>{message.text}</p>
+                    <p className="text-sm">{message.text}</p>
 
+                    {/* Project Document Card */}
                     {message.project && projects[message.project] && (
                       <button
-                        onClick={() => message.project && handleProjectClick(message.project)}
-                        className="mt-4 w-full rounded-2xl border border-amber-300 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm dark:border-amber-500/60 dark:bg-slate-900"
+                        onClick={() => handleProjectClick(message.project)}
+                        className="w-full mt-3 border-2 border-purple-400 rounded-2xl p-4 bg-white hover:bg-purple-50 transition-colors text-left group"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
-                            <FileText className="h-5 w-5" />
+                          <div className="flex-shrink-0 mt-1">
+                            <FileText className="w-8 h-8 text-purple-500" />
                           </div>
-                          <div className="min-w-0 flex-1 space-y-1 text-sm">
-                            <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
                               <div>
-                                <h4 className="font-semibold text-slate-900 dark:text-white">Проект: {projects[message.project].name}</h4>
-                                <p className="text-xs text-slate-600 dark:text-slate-300">{projects[message.project].description}</p>
+                                <h4 className="font-bold text-gray-900 text-sm">
+                                  Проект: {projects[message.project].name}
+                                </h4>
+                                <p className="text-xs text-gray-600 mt-1">
+                                  {projects[message.project].description}
+                                </p>
                               </div>
-                              <span className="text-xs font-semibold text-amber-600 dark:text-amber-200">Подробнее →</span>
+                              <svg
+                                className="w-4 h-4 text-purple-500 flex-shrink-0 ml-2 group-hover:translate-x-1 transition-transform"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                              <FileText className="h-3 w-3" />
+                            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                              <FileText className="w-3 h-3" />
                               <span>{projects[message.project].fileName}</span>
-                              <span>• {projects[message.project].fileSize}</span>
+                              <span>{projects[message.project].fileSize}</span>
                             </div>
                           </div>
                         </div>
@@ -173,11 +167,11 @@ export default function ChatPage() {
 
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="rounded-3xl bg-slate-100 px-6 py-3 ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+                  <div className="bg-white border border-gray-200 rounded-3xl px-6 py-3">
                     <div className="flex gap-2">
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
                     </div>
                   </div>
                 </div>
@@ -185,32 +179,34 @@ export default function ChatPage() {
 
               <div ref={messagesEndRef} />
             </div>
+          </div>
 
-            <div className="mt-6">
-              <form onSubmit={handleSendMessage} className="relative mx-auto max-w-3xl">
-                <div className="flex items-center gap-3 rounded-full border border-slate-300 bg-white px-4 py-2 shadow-inner focus-within:border-amber-400 dark:border-slate-700 dark:bg-slate-900">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Опишите задачу или задайте вопрос AI..."
-                    className="w-full bg-transparent px-2 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-slate-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!input.trim()}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-400 text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-amber-500 dark:hover:bg-amber-400"
-                    aria-label="Отправить"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
+          {/* Input Area */}
+          <div className="border-t border-gray-200 bg-white p-6">
+            <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Опишите задачу или задайте вопрос AI..."
+                  className="w-full rounded-full border-2 border-red-300 px-6 py-3 pr-12 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-gray-700 hover:bg-gray-800 disabled:bg-gray-300 text-white rounded-full p-2 transition-colors flex-shrink-0"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs text-gray-500 px-2">
+                <div className="flex items-center gap-1">
+                  🔒 Ваши данные защищены
                 </div>
-                <div className="mt-2 flex items-center justify-between px-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span>🔒 Ваши данные защищены</span>
-                  <span>Нажмите Enter для отправки</span>
-                </div>
-              </form>
-            </div>
+                <span>Нажмите Enter для отправки</span>
+              </div>
+            </form>
           </div>
         </main>
       </div>

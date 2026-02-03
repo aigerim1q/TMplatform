@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +17,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -70,6 +73,7 @@ func main() {
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
 	r.Use(chimw.Recoverer)
+	r.Use(corsMiddleware)
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3002"},
@@ -90,6 +94,13 @@ func main() {
 		r.Post("/login", app.handleLogin)
 	})
 
+	// projects & stages (public with optional auth)
+	r.Get("/projects", app.handleProjectsList)
+	r.Post("/projects", app.handleProjectsCreate)
+	r.Get("/projects/{id}", app.handleProjectGet)
+	r.Get("/projects/{id}/stages", app.handleProjectStagesList)
+	r.Put("/stages/{id}", app.handleStageUpdate)
+
 	// protected
 	r.Group(func(r chi.Router) {
 		r.Use(app.authMiddleware)
@@ -99,6 +110,16 @@ func main() {
 		// notifications (protected)
 		r.Get("/notifications", app.handleNotificationsList)
 		r.Put("/notifications/{id}/read", app.handleNotificationMarkRead)
+
+		// tasks & files
+		r.Get("/stages/{id}/tasks", app.handleStageTasksList)
+		r.Get("/tasks", app.handleTasksList)
+		r.Post("/tasks", app.handleTaskCreate)
+		r.Get("/tasks/{id}", app.handleTaskGet)
+		r.Post("/tasks/{id}/files", app.handleTaskFileUpload)
+
+		// stages
+		r.Post("/projects/{id}/stages", app.handleProjectStageCreate)
 	})
 
 	log.Printf("server started on port %s", appPort)
@@ -283,6 +304,401 @@ func (a *App) handleNotificationMarkRead(w http.ResponseWriter, r *http.Request)
 }
 
 /* =========================
+   Handlers: Projects & Stages
+========================= */
+
+func (a *App) handleProjectsList(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		devAuth, err := a.ensureDevUser(r.Context())
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "auth error")
+			return
+		}
+		auth = devAuth
+	}
+
+	limit := 50
+	offset := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if x, err := strconv.Atoi(v); err == nil {
+			limit = x
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if x, err := strconv.Atoi(v); err == nil {
+			offset = x
+		}
+	}
+
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	items, err := dbpkg.ListProjects(r.Context(), a.DB, auth.OrgID, limit, offset, sort, order)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	for i := range items {
+		assignees, err := dbpkg.ListProjectAssignees(r.Context(), a.DB, items[i].ID)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "db error")
+			return
+		}
+		items[i].Assignees = assignees
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"meta":  map[string]any{"limit": limit, "offset": offset, "sort": sort, "order": order},
+	})
+}
+
+func (a *App) handleProjectGet(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		devAuth, err := a.ensureDevUser(r.Context())
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "auth error")
+			return
+		}
+		auth = devAuth
+	}
+
+	idStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(idStr)
+	if err != nil || pid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	item, err := dbpkg.GetProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (a *App) handleProjectStagesList(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		devAuth, err := a.ensureDevUser(r.Context())
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "auth error")
+			return
+		}
+		auth = devAuth
+	}
+
+	idStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(idStr)
+	if err != nil || pid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	_, err = dbpkg.GetProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	sort := r.URL.Query().Get("sort")
+	order := r.URL.Query().Get("order")
+
+	items, err := dbpkg.ListStages(r.Context(), a.DB, pid, sort, order)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"meta":  map[string]any{"sort": sort, "order": order},
+	})
+}
+
+func (a *App) handleProjectStageCreate(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		devAuth, err := a.ensureDevUser(r.Context())
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "auth error")
+			return
+		}
+		auth = devAuth
+	}
+
+	idStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(idStr)
+	if err != nil || pid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	_, err = dbpkg.GetProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	var input struct {
+		Title       string  `json:"title"`
+		Description *string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	input.Title = strings.TrimSpace(input.Title)
+	if input.Title == "" {
+		writeErr(w, http.StatusBadRequest, "title required")
+		return
+	}
+
+	stage, err := dbpkg.CreateStage(r.Context(), a.DB, pid, input.Title, input.Description)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, stage)
+}
+
+func (a *App) handleProjectsCreate(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		devAuth, err := a.ensureDevUser(r.Context())
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "auth error")
+			return
+		}
+		auth = devAuth
+	}
+
+	type payload struct {
+		Name            string
+		Description     *string
+		Status          string
+		StartDate       string
+		EndDate         string
+		Priority        int
+		ImageURL        *string
+		BudgetAllocated float64
+		BudgetSpent     float64
+		BudgetCurrency  string
+		AssigneeIDs     []int
+	}
+
+	var body payload
+
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(20 << 20); err != nil {
+			writeErr(w, http.StatusBadRequest, "invalid multipart")
+			return
+		}
+
+		body.Name = strings.TrimSpace(r.FormValue("name"))
+		desc := strings.TrimSpace(r.FormValue("description"))
+		if desc != "" {
+			body.Description = &desc
+		}
+		body.Status = strings.TrimSpace(strings.ToLower(r.FormValue("status")))
+		body.StartDate = strings.TrimSpace(r.FormValue("start_date"))
+		body.EndDate = strings.TrimSpace(r.FormValue("end_date"))
+		body.Priority = parseIntDefault(r.FormValue("priority"), 0)
+		body.BudgetAllocated = parseFloatDefault(r.FormValue("budget_allocated"), 0)
+		body.BudgetSpent = parseFloatDefault(r.FormValue("budget_spent"), 0)
+		body.BudgetCurrency = strings.TrimSpace(r.FormValue("budget_currency"))
+
+		imageURL := strings.TrimSpace(r.FormValue("image_url"))
+		if imageURL != "" {
+			body.ImageURL = &imageURL
+		}
+
+		file, header, err := r.FormFile("image")
+		if err == nil && file != nil {
+			defer file.Close()
+			data, err := io.ReadAll(file)
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, "invalid image")
+				return
+			}
+			mimeType := header.Header.Get("Content-Type")
+			if mimeType == "" {
+				mimeType = http.DetectContentType(data)
+			}
+			encoded := base64.StdEncoding.EncodeToString(data)
+			dataURL := "data:" + mimeType + ";base64," + encoded
+			body.ImageURL = &dataURL
+		}
+	} else {
+		type budgetReq struct {
+			Allocated float64 `json:"allocated"`
+			Spent     float64 `json:"spent"`
+			Currency  string  `json:"currency"`
+		}
+
+		type assigneeRef struct {
+			ID int `json:"id"`
+		}
+
+		type req struct {
+			Name        string        `json:"name"`
+			Description *string       `json:"description"`
+			Status      string        `json:"status"`
+			StartDate   string        `json:"start_date"`
+			EndDate     string        `json:"end_date"`
+			Priority    int           `json:"priority"`
+			ImageURL    *string       `json:"image_url"`
+			Budget      budgetReq     `json:"budget"`
+			AssigneeIDs []int         `json:"assignee_ids"`
+			Assignees   []assigneeRef `json:"assignees"`
+		}
+
+		var input req
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			writeErr(w, http.StatusBadRequest, "invalid json")
+			return
+		}
+		body.Name = strings.TrimSpace(input.Name)
+		body.Description = input.Description
+		body.Status = strings.TrimSpace(strings.ToLower(input.Status))
+		body.StartDate = input.StartDate
+		body.EndDate = input.EndDate
+		body.Priority = input.Priority
+		body.ImageURL = input.ImageURL
+		body.BudgetAllocated = input.Budget.Allocated
+		body.BudgetSpent = input.Budget.Spent
+		body.BudgetCurrency = input.Budget.Currency
+		body.AssigneeIDs = append(body.AssigneeIDs, input.AssigneeIDs...)
+		for _, a := range input.Assignees {
+			if a.ID > 0 {
+				body.AssigneeIDs = append(body.AssigneeIDs, a.ID)
+			}
+		}
+	}
+
+	body.Name = strings.TrimSpace(body.Name)
+	body.Status = strings.TrimSpace(strings.ToLower(body.Status))
+
+	if body.Name == "" {
+		writeErr(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if body.Status == "" {
+		body.Status = "draft"
+	}
+	if !isValidProjectStatus(body.Status) {
+		writeErr(w, http.StatusBadRequest, "invalid status")
+		return
+	}
+
+	startDate, err := parseDate(body.StartDate)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid start_date")
+		return
+	}
+	endDate, err := parseDate(body.EndDate)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid end_date")
+		return
+	}
+
+	item, err := dbpkg.CreateProject(r.Context(), a.DB, dbpkg.CreateProjectInput{
+		OrgID:           auth.OrgID,
+		OwnerID:         auth.UserID,
+		Name:            body.Name,
+		Description:     body.Description,
+		Status:          body.Status,
+		StartDate:       startDate,
+		EndDate:         endDate,
+		Priority:        body.Priority,
+		ImageURL:        body.ImageURL,
+		BudgetAllocated: body.BudgetAllocated,
+		BudgetSpent:     body.BudgetSpent,
+		BudgetCurrency:  body.BudgetCurrency,
+		AssigneeIDs:     body.AssigneeIDs,
+	})
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, item)
+}
+
+func (a *App) handleStageUpdate(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		devAuth, err := a.ensureDevUser(r.Context())
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "auth error")
+			return
+		}
+		auth = devAuth
+	}
+
+	idStr := chi.URLParam(r, "id")
+	sid, err := strconv.Atoi(idStr)
+	if err != nil || sid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	var body struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	body.Status = strings.TrimSpace(strings.ToLower(body.Status))
+	if !isValidStageStatus(body.Status) {
+		writeErr(w, http.StatusBadRequest, "invalid status")
+		return
+	}
+
+	var orgID int
+	if err := a.DB.QueryRow(r.Context(), `SELECT p.org_id FROM stages s JOIN projects p ON p.id = s.project_id WHERE s.id = $1`, sid).Scan(&orgID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	if orgID != auth.OrgID {
+		writeErr(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	item, err := dbpkg.UpdateStageStatus(r.Context(), a.DB, sid, body.Status)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, item)
+}
+
+/* =========================
    Middleware + JWT
 ========================= */
 
@@ -410,4 +826,102 @@ func toInt(v any) (int, bool) {
 	default:
 		return 0, false
 	}
+}
+
+func isValidProjectStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "draft", "active", "paused", "done":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidStageStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "todo", "in_progress", "done":
+		return true
+	default:
+		return false
+	}
+}
+
+func parseDate(v string) (*time.Time, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func parseIntDefault(v string, def int) int {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return def
+	}
+	if i, err := strconv.Atoi(v); err == nil {
+		return i
+	}
+	return def
+}
+
+func parseFloatDefault(v string, def float64) float64 {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return def
+	}
+	if f, err := strconv.ParseFloat(v, 64); err == nil {
+		return f
+	}
+	return def
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (a *App) ensureDevUser(ctx context.Context) (*AuthCtx, error) {
+	const email = "dev@tmplatform.local"
+	var (
+		id    int
+		orgID int
+		role  string
+	)
+
+	err := a.DB.QueryRow(ctx, `SELECT id, org_id, role FROM users WHERE email = $1`, email).Scan(&id, &orgID, &role)
+	if err == nil {
+		return &AuthCtx{UserID: id, OrgID: orgID, Role: role}, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("devpassword123"), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	role = "admin"
+	orgID = 1
+	if err := a.DB.QueryRow(ctx,
+		`INSERT INTO users (org_id, email, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id`,
+		orgID, email, string(passwordHash), role,
+	).Scan(&id); err != nil {
+		return nil, err
+	}
+
+	return &AuthCtx{UserID: id, OrgID: orgID, Role: role}, nil
 }
