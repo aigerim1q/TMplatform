@@ -1,21 +1,80 @@
 # TMplatform
 
-## Project Structure
-- `parsing AI/` - Existing parsing AI component
-- `chatbot/` - Advanced knowledge planning chatbot with RAG capabilities
+Full platform (frontend, backend, auth, notifications) **with Chatbot** — like [aigerim1q/TMplatform](https://github.com/aigerim1q/TMplatform) plus the knowledge-planning chatbot.
 
-## Chatbot Component
-The chatbot is a knowledge planning bot with RAG (Retrieval-Augmented Generation) functionality that supports:
-- File and URL source integration
-- Context management (project/stage/task hierarchy)
-- Question answering based on knowledge sources
-- Text editing capabilities
-- Multiple grounding modes (strict/hybrid/general)
+## Project structure
 
-### Running the Chatbot
-1. Navigate to the chatbot directory: `cd chatbot`
-2. Install dependencies: `npm install`
-3. Set up environment variables (if using DeepSeek API)
-4. Run: `npm run dev`
+- **`app/`** – Next.js app (dashboard, chat, hierarchy, documents, project)
+- **`backend/`** – Go API (auth, users, hierarchy, notifications) — `http://localhost:3001`
+- **`frontend/`** – Next.js frontend (alternate)
+- **`components/`**, **`lib/`**, **`hooks/`** – Shared UI and utilities
+- **`chatbot/`** – Knowledge-planning chatbot (RAG, projects/tasks, HTTP API + `/chat` UI)
+- **`zhcp-parser-go/`** – Parser component
+- **`parsing AI/`** – Parsing AI component
 
-For detailed usage instructions, see the README.md in the chatbot directory.
+---
+
+## Sprint 3 — Auth integration (frontend + backend)
+
+- Login/Register with backend: `POST /auth/login`, `POST /auth/register`
+- JWT (accessToken) in localStorage; route guard → `/login` when no token
+- Protected: `GET /users/:id`, `GET /hierarchy`
+- CORS enabled for frontend
+- Notifications: `GET /notifications`, `PUT /notifications/:id/read` (JWT)
+
+---
+
+## Chatbot
+
+The **chatbot** in `chatbot/` provides:
+
+- Projects & tasks (create project, list, show, assign, plan)
+- HTTP API: `POST /api/chat`, `GET /api/health`, in-browser UI at `GET /chat`
+- Optional CLI frontend that uses the API when `CHATBOT_API_URL` is set
+
+### Run the chatbot backend (from repo root)
+
+```bash
+./chatbot/TMplatform/run_chatbot_http.sh
+```
+
+Then open **http://localhost:8080/chat** for the in-browser chat, or use the main app’s Chat page (see below).
+
+### Run the main app with chatbot
+
+1. **Backend (platform API)**  
+   `cd backend && go mod tidy && go run ./cmd/server`  
+   → http://localhost:3001
+
+2. **Chatbot backend (optional, for real AI chat)**  
+   `./chatbot/TMplatform/run_chatbot_http.sh`  
+   → http://localhost:8080
+
+3. **Frontend**  
+   `cd frontend` (or root if using root `package.json`)  
+   `printf "NEXT_PUBLIC_API_URL=http://localhost:3001\nNEXT_PUBLIC_CHATBOT_API_URL=http://localhost:8080\n" > .env.local`  
+   `pnpm install && pnpm dev`  
+   → http://localhost:3000
+
+The **Chat** page in the app uses the chatbot when `NEXT_PUBLIC_CHATBOT_API_URL` is set; otherwise it uses the built-in demo.
+
+---
+
+## Quick start (platform only)
+
+```bash
+git clone https://github.com/aigerim1q/TMplatform.git
+cd TMplatform
+
+# Backend
+cd backend && go mod tidy && go run ./cmd/server
+# → http://localhost:3001
+
+# Frontend (new terminal)
+cd ../frontend
+printf "NEXT_PUBLIC_API_URL=http://localhost:3001\n" > .env.local
+pnpm install && pnpm dev
+# → http://localhost:3000
+```
+
+For **Chatbot** as well, run `./chatbot/TMplatform/run_chatbot_http.sh` and set `NEXT_PUBLIC_CHATBOT_API_URL=http://localhost:8080` in `.env.local`.

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Профиль</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="editprofile.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo" onclick="location.href='index.html'">Logo</div>
+
+    <div class="menu">
+      <div class="menu-title">ПРИБОРНАЯ ПАНЕЛЬ</div>
+
+      <a href="index.html" class="menu-item">
+        <i class="fa-solid fa-house"></i>Приборная панель
+      </a>
+
+      <a class="menu-item"><i class="fa-regular fa-calendar"></i>Календарь</a>
+      <a class="menu-item"><i class="fa-regular fa-rectangle-list"></i>Мои задачи</a>
+      <a class="menu-item"><i class="fa-regular fa-square-plus"></i>Добавить задачу</a>
+      <a class="menu-item"><i class="fa-solid fa-sitemap"></i>Иерархия</a>
+
+      <div class="menu-title">СТРАНИЦЫ</div>
+
+      <a href="profile.html" class="menu-item active">
+        <i class="fa-regular fa-user" href="profile.html"></i>Профиль
+      </a>
+
+      <a class="menu-item"><i class="fa-solid fa-chart-line" href="kpi.html"></i>KPI</a>
+      <a class="menu-item"><i class="fa-solid fa-wallet"></i>Финансовый бюджет</a>
+      <a class="menu-item"><i class="fa-regular fa-circle-question"></i>FAQs</a>
+      <a class="menu-item"><i class="fa-regular fa-note-sticky"></i>Заметка</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input placeholder="Поиск">
+      </div>
+
+      <div class="top-actions">
+        <div class="lang">🇷🇺 Русский</div>
+        <i class="fa-solid fa-bell"></i>
+        <img class="avatar" src="https://i.pravatar.cc/40">
+      </div>
+    </div>
+
+    <h1>Профиль</h1>
+ <!-- CARD -->
+    <div class="profile-card">
+
+      <div class="profile-header">
+        <img src="https://i.pravatar.cc/120?img=47">
+        <div>
+          <h2>Arailym Yessenkeldi</h2>
+          <p>yessenkeldiarailym@gmail.com</p>
+          <button class="outline-btn small">Изменить фото или аватар</button>
+        </div>
+      </div>
+
+      <form id="profileForm" class="profile-form disabled">
+
+        <div class="grid">
+          <div>
+            <label>Имя</label>
+            <input disabled placeholder="Имя">
+          </div>
+
+          <div>
+            <label>Фамилия</label>
+            <input disabled placeholder="Фамилия">
+          </div>
+
+          <div>
+            <label>Основная информация</label>
+            <input disabled placeholder="Должность : Инженер проекта">
+          </div>
+
+          <div>
+            <label>Отдел : Строительство</label>
+            <input disabled placeholder="Дата начала работы : 15.03.2025">
+          </div>
+
+          <div>
+            <label>Место работы</label>
+            <select disabled>
+              <option>Silence Ai company</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="primary-btn full"
+          onclick="location.href='kpi.html'">
+          Посмотреть KPI
+        </button>
+
+        <button type="submit" class="outline-btn full">
+          Сохранить изменения
+        </button>
+
+      </form>
+    </div>
+  </main>
+</div>
+<script>
+const editBtn = document.getElementById('editBtn');
+const form = document.getElementById('profileForm');
+const fields = form.querySelectorAll('input, select');
+
+let editing = false;
+
+editBtn.onclick = () => {
+  editing = !editing;
+  form.classList.toggle('disabled', !editing);
+  fields.forEach(f => f.disabled = !editing);
+};
+</script>
+</body>
+</html>

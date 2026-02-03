@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Quryls</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #222;
+}
+
+/* TOP BAR */
+.topbar {
+  height: 56px;
+  border-bottom: 1px solid #e6e6e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.top-left, .top-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.icon-btn {
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #555;
+}
+
+.icon-btn:hover {
+  background: #f1f1f1;
+}
+
+.badge {
+  background: #e7f0ff;
+  color: #2f6ce5;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+/* LAYOUT */
+.wrapper {
+  display: flex;
+  height: calc(100vh - 56px);
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 280px;
+  background: #f7f7f5;
+  padding: 16px;
+  border-right: 1px solid #e6e6e6;
+}
+
+.workspace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sidebar-item:hover {
+  background: #ececec;
+}
+
+.section-title {
+  margin: 18px 0 8px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* MAIN */
+.main {
+  flex: 1;
+  padding: 80px 120px;
+}
+
+/* LOGO */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.logo-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #2f6ce5;
+  color: #fff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text {
+  font-weight: 700;
+  color: #2f6ce5;
+  letter-spacing: 1px;
+}
+
+/* TITLE */
+h1 {
+  font-size: 42px;
+  margin: 10px 0 50px;
+}
+
+/* GRID */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 120px;
+}
+
+.grid h3 {
+  font-size: 22px;
+  margin-bottom: 14px;
+}
+
+.list a {
+  display: block;
+  color: #222;
+  text-decoration: underline;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="top-left">
+    <div class="icon-btn">←</div>
+    <div class="icon-btn">→</div>
+    <div class="icon-btn">🏠 Главный</div>
+    <span class="badge">THE QURYLs</span>
+  </div>
+
+  <div class="top-right">
+    <div class="icon-btn">Поделиться</div>
+    <div class="icon-btn">💬</div>
+    <div class="icon-btn">⏰</div>
+    <div class="icon-btn">⭐</div>
+    <div class="icon-btn">⋯</div>
+  </div>
+</header>
+
+<div class="wrapper">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="workspace">🏠 Quryls</div>
+
+    <div class="sidebar-item">🔍 Поиск</div>
+    <div class="sidebar-item">🕒 Обновления</div>
+    <div class="sidebar-item">📋 Все команды</div>
+    <div class="sidebar-item">⚙️ Настройки и участники</div>
+
+    <div class="section-title">Teamspaces</div>
+
+    <div class="sidebar-item">🏠 Общий</div>
+    <div class="sidebar-item">📘 Руководство по офису</div>
+    <div class="sidebar-item">📕 Каталог сотрудников</div>
+    <div class="sidebar-item">📱 iOS team</div>
+    <div class="sidebar-item">🎨 UX team</div>
+    <div class="sidebar-item">💻 Web team</div>
+    <div class="sidebar-item">👥 Teams</div>
+
+    <div class="sidebar-item" style="margin-top:20px;color:#888;">➕ New page</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="logo">
+      <div class="logo-circle">THE</div>
+      <div class="logo-text">QURYLs</div>
+    </div>
+
+    <h1>The Quryls</h1>
+
+    <div class="grid">
+      <div>
+        <h3>Team</h3>
+        <div class="list">
+          <a>Team 1</a>
+          <a>Team 2</a>
+          <a>Team 3</a>
+          <a>Team 4</a>
+        </div>
+      </div>
+
+      <div>
+        <h3>Tasks</h3>
+        <div class="list">
+          <a>UX-задачи</a>
+          <a>Веб-задачи</a>
+          <a>Задачи веб-дизайна</a>
+          <a>Цифровые задачи</a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+</body>
+</html>

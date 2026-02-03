@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Project Shyraq</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,sans-serif}
+
+body{
+  background:#fff;
+  display:flex;
+  justify-content:center;
+  color:#111;
+}
+
+/* PAGE */
+.page{
+  width:100%;
+  max-width:1200px;
+  padding:24px;
+}
+
+/* HEADER */
+.header-wrap{
+  display:flex;
+  justify-content:center;
+  margin-bottom:14px;
+}
+.navbar{
+  background:#3a3a3a;
+  padding:14px 30px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  gap:26px;
+}
+.logo{color:#f1d38a;font-weight:700}
+.navbar a{color:#fff;text-decoration:none;font-size:14px}
+.navbar a.active{border-bottom:2px solid #fff}
+.nav-icons{display:flex;align-items:center;gap:12px}
+.avatar{width:32px;height:32px;border-radius:50%}
+
+/* SWITCH */
+.top-switch{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  margin-bottom:18px;
+}
+.switch-btn{
+  padding:10px 22px;
+  border-radius:999px;
+  border:none;
+  font-size:14px;
+}
+.switch-btn.active{background:#000;color:#fff}
+.switch-btn.passive{background:#6b6b6b;color:#fff}
+
+/* IMAGE + BACK */
+.project-block{position:relative;margin-bottom:14px}
+.back-btn{
+  position:absolute;
+  top:-30px;
+  left:0;
+  background:#000;
+  color:#fff;
+  border:none;
+  border-radius:999px;
+  padding:10px 18px;
+}
+.project-img{
+  width:260px;
+  height:150px;
+  border-radius:18px;
+  object-fit:cover;
+}
+
+/* TITLES */
+h1{font-size:28px;margin:14px 0}
+
+/* INFO */
+.info-row{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.info-box{
+  background:#f2f2f2;
+  border-radius:18px;
+  padding:14px 18px;
+  font-size:14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.info-box.green{background:#bff1d6}
+.info-box.beige{background:#f3e6c3}
+
+/* BUTTON */
+.btn{
+  background:#000;
+  color:#fff;
+  border:none;
+  border-radius:999px;
+  padding:10px 18px;
+  font-size:14px;
+}
+.red-dot{display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:red}
+
+/* SECTIONS */
+.section-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:20px 0 10px;
+}
+.section-title{
+  background:#000;
+  color:#fff6f6;
+  padding:10px 18px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* CARDS */
+.cards{
+  display:flex;
+  gap:14px;
+  overflow-x:auto;
+  padding-bottom:8px;
+}
+.card{
+  min-width:280px;
+  background:#f6f6f6;
+  border-radius:18px;
+  padding:16px;
+}
+.card p{font-size:14px;color:#555}
+
+/* 👉 TITLE + BADGE ҚАТАР */
+.card-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+}
+.card-title h3{
+  font-size:16px;
+  font-weight:600;
+}
+
+.badge{
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+}
+.badge.green{background:#9ec3af}
+.badge.red{background:#e0b3b3}
+.badge.gray{background:#e1e1e1}
+
+/* STAGE BLOCK */
+.stage-block{
+  background:#000;
+  color:#fff;
+  border-radius:24px;
+  padding:18px;
+  max-width:360px;
+}
+.stage-block .green-box{
+  background:#bff1d6;
+  color:#000;
+  border-radius:16px;
+  padding:14px;
+  margin-top:10px;
+}
+
+/* CENTER BUTTON */
+.center-btn{
+  display:flex;
+  justify-content:center;
+  margin:28px 0;
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<div class="header-wrap">
+  <div class="navbar">
+    <div class="logo">THE QURYLYS</div>
+    <a href="#">Календарь</a>
+    <a href="#">Иерархия</a>
+    <a class="active" href="#">Дашборд</a>
+    <div class="nav-icons">
+      <img src="image copy 2.png" width="30">
+      <img class="avatar" src="image.png">
+    </div>
+  </div>
+</div>
+
+<!-- SWITCH -->
+<div class="top-switch">
+  <button class="switch-btn active">Задача</button>
+  <button class="switch-btn passive">Отчеты</button>
+</div>
+
+<!-- IMAGE -->
+<div class="project-block">
+  <button class="back-btn">← Назад</button>
+  <img class="project-img" src="image copy 3.png">
+</div>
+
+<h1>Проект: Shyraq</h1>
+
+<!-- INFO -->
+<div class="info-row">
+  <div class="info-box green">
+    Финансы: 1,500,900,000 / 2,400,800,000
+    <button class="btn">Отчеты расходов</button>
+  </div>
+</div>
+
+<div class="info-row">
+  <div class="info-box beige">
+    ⏰ Дедлайн: 12.12.2025<br>
+    Дата начала: 9.06.2025
+  </div>
+  <div class="info-box">
+    Ответственые: Омар Ахмет, Зейнулла Ршыман,<br>Серик Рах...
+  </div>
+  <button class="btn red-dot"><span class="dot"></span> Причины отсрочки</button>
+</div>
+
+<!-- STAGE I -->
+<div class="section-header">
+  <div class="section-title">
+    I. Предпроектная подготовка
+    <span class="badge red">Задержка: 5 дней</span>
+  </div>
+  <button class="btn">+ Добавить задачу</button>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-title">
+      <h3>Проект: Shyraq</h3>
+      <span class="badge green">Выполнено</span>
+    </div>
+    <h3>1. Инициирование проекта</h3>
+    <p>Определение ориентировочной площади<br> и этажности
+Анализ потребностей рынка...</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <h3>Проект: Shyraq</h3>
+      <span class="badge red">Задержка: 5...</span>
+    </div>
+    <h3>2. Финансово-экономическ...</h3>
+    <p>Прогноз стоимости строительства<br>
+Расчёт рентабельности проекта (ROI)...</p>
+  </div>
+</div>
+
+<!-- STAGE II -->
+<div class="section-header">
+  <div class="section-title">
+    II. Проектирование (архитектура, инженерия, дизайн)<span class="badge green">Выполнено</span>
+  </div>
+  <button class="btn">+ Добавить задачу</button>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-title">
+      <h3>Проект: Shyraq</h3>
+      <span class="badge green">Выполнено</span>
+      
+    </div>
+  </div>
+</div>
+
+<!-- STAGE III -->
+<div class="section-header">
+  <div class="section-title">
+    <img src="image copy 7.png" width="200px" height="90px">
+  </div>
+  <button class="btn">+ Добавить задачу</button>
+</div>
+
+<div class="center-btn">
+  <button class="btn">+ Добавить этап проекта</button>
+</div>
+
+</div>
+</body>
+</html>

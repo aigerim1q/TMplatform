@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Профиль</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="profile.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo" onclick="location.href='index.html'">Logo</div>
+
+    <div class="menu">
+      <div class="menu-title">ПРИБОРНАЯ ПАНЕЛЬ</div>
+
+      <a href="index.html" class="menu-item">
+        <i class="fa-solid fa-house"></i>Приборная панель
+      </a>
+
+      <a class="menu-item"><i class="fa-regular fa-calendar"></i>Календарь</a>
+      <a class="menu-item"><i class="fa-regular fa-rectangle-list"></i>Мои задачи</a>
+      <a class="menu-item"><i class="fa-regular fa-square-plus"></i>Добавить задачу</a>
+      <a class="menu-item"><i class="fa-solid fa-sitemap"></i>Иерархия</a>
+
+      <div class="menu-title">СТРАНИЦЫ</div>
+
+      <a href="profile.html" class="menu-item active">
+        <i class="fa-regular fa-user"></i>Профиль
+      </a>
+
+      <a class="menu-item"><i class="fa-solid fa-chart-line"></i>KPI</a>
+      <a class="menu-item"><i class="fa-solid fa-wallet"></i>Финансовый бюджет</a>
+      <a class="menu-item"><i class="fa-regular fa-circle-question"></i>FAQs</a>
+      <a class="menu-item"><i class="fa-regular fa-note-sticky"></i>Заметка</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input placeholder="Поиск">
+      </div>
+
+      <div class="top-actions">
+        <div class="lang">🇷🇺 Русский</div>
+        <i class="fa-solid fa-bell"></i>
+        <img class="avatar" src="https://i.pravatar.cc/40">
+      </div>
+    </div>
+
+    <h1>Профиль</h1>
+
+    <div class="profile-card">
+      <div class="profile-header">
+        <img src="https://i.pravatar.cc/120?img=47">
+        <div>
+          <h2>Arailym Yessenkeldi</h2>
+          <p>yessenkeldiarailym@gmail.com</p>
+         <button class="edit-btn" onclick="location.href='editprofile.html'">
+  Редактировать профиль ▾
+</button>
+
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab active" data-tab="todo">не завершён</button>
+        <button class="tab" data-tab="process">в процессе</button>
+        <button class="tab" data-tab="done">завершён</button>
+      </div>
+
+      <!-- TASKS -->
+      <div class="tasks" id="tasks"></div>
+
+    </div>
+
+  </main>
+</div>
+
+<script > const tabs = document.querySelectorAll('.tab');
+const tasksContainer = document.getElementById('tasks');
+
+const data = {
+  todo: {
+    color: 'red',
+    label: 'Задержка: 5 дней'
+  },
+  process: {
+    color: 'green',
+    label: 'В процессе'
+  },
+  done: {
+    color: 'green',
+    label: 'Завершено'
+  }
+};
+
+function render(tab) {
+  tasksContainer.innerHTML = `
+    <div class="task">
+      <div class="task-header">
+        <strong>Проект: Shyraq</strong>
+        <span class="badge ${data[tab].color}">${data[tab].label}</span>
+      </div>
+      <h3>2. Финансово-экономический проект</h3>
+      <p>
+        Прогноз стоимости строительства представляет собой комплексный расчёт
+        предполагаемых затрат, необходимых для реализации проекта.
+      </p>
+    </div>
+
+    <div class="task">
+      <div class="task-header">
+        <strong>Проект: Shyraq</strong>
+        <span class="badge ${data[tab].color}">${data[tab].label}</span>
+      </div>
+      <h3>2. Финансово-экономический проект</h3>
+      <p>
+        Прогноз стоимости строительства представляет собой комплексный расчёт
+        предполагаемых затрат, необходимых для реализации проекта.
+      </p>
+    </div>
+  `;
+}
+
+tabs.forEach(tab => {
+  tab.onclick = () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    render(tab.dataset.tab);
+  };
+});
+
+render('todo');
+</script>
+</body>
+</html>

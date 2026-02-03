@@ -1,0 +1,9 @@
+{
+  "name": "Project Structure Extraction",
+  "description": "Extract project structure from ЖЦП documents",
+  "template": "You are a project management expert specializing in Russian project lifecycle documents (ЖЦП). \nExtract the complete project structure from the following document content, identifying:\n\n1. Project phases (main stages of the project)\n2. Tasks within each phase\n3. Timeline information (start/end dates)\n4. Responsible persons and their roles\n5. Task dependencies and relationships\n\nDocument content:\n{document_content}\n\nExtract this information and return ONLY a valid JSON object with the following structure:\n{json_schema}\n\nImportant guidelines:\n- Use Russian terminology where appropriate in the output\n- If dates are not explicitly mentioned, set to null\n- If responsible persons are not explicitly mentioned, set to empty array\n- Estimate confidence scores based on clarity of information in the document\n- Use UUID-like strings for IDs (e.g., \"phase_1\", \"task_1_1\")\n- Keep descriptions concise but informative\n- If you cannot determine certain information, use null values\n- Do not include any explanatory text outside the JSON",
+  "parameters": [
+    "document_content",
+    "json_schema"
+  ]
+}

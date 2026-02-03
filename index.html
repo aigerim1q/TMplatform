@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="bg-bg font-sans text-dark">
+
+<!-- HEADER -->
+<div class="topbar">
+  <!-- CENTER -->
+  <div class="topbar-center">
+    <div class="logo">THE·QURYLS</div>
+    <nav class="nav">
+      <a href="#">Календарь</a>
+      <a href="#">Иерархия</a>
+      <a href="#" class="active">Дашборд</a>
+    </nav>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="topbar-right">
+    <div class="relative">
+      💬
+      <span class="notif-dot"></span>
+    </div>
+    <img src="https://i.pravatar.cc/40" class="avatar">
+  </div>
+</div>
+
+
+<!-- MAIN -->
+<main class="max-w-[1400px] mx-auto px-6 py-8 space-y-10">
+
+  <!-- URGENT TASK -->
+  <section>
+    <div class="section-title">
+      <span class="dot green"></span>
+      <h2>Срочные задачи: 1</h2>
+    </div>
+
+    <div class="task-card">
+      <div class="task-header">
+        <span>Проект: Shyraq</span>
+        <span class="badge green">⏱ 18 часов</span>
+      </div>
+
+      <h3>Нужно привести 10 плиток</h3>
+      <p>
+        На объекте Shyraq срочно требуется новая плитка, 5x3 метра,
+        2 штуки для наличников вокруг п...
+      </p>
+    </div>
+  </section>
+
+  <!-- MY TASKS -->
+  <section>
+    <div class="section-title">
+      <span class="dot red"></span>
+      <h2>Мои задачи: 10</h2>
+    <button
+  class="btn-black"
+  onclick="window.location.href='addtask.html'">
+  Добавить задачу
+</button>
+
+    </div>
+
+    <div class="scroll-row">
+      <div class="task-card">
+        <div class="task-header">
+          <span>Проект: Shyraq</span>
+          <span class="badge red">⏱ -9 часов</span>
+        </div>
+        <h3>Возведение колонн на 1 э...</h3>
+        <p>
+          Интерьеры подъездов и этажей. Перед началом работ нужно провести подготовку...
+        </p>
+      </div>
+
+      <div class="task-card">
+        <div class="task-header">
+          <span>Проект: Ansau</span>
+          <span class="badge green">⏱ 2 дня</span>
+        </div>
+        <h3>Нужно сделать новую пла...</h3>
+        <p>
+          На объекте Ansau срочно требуется новая планировка 5-го этажа...
+        </p>
+      </div>
+
+      <div class="task-card">
+        <div class="task-header">
+          <span>Проект: Dariya</span>
+          <span class="badge green">⏱ 20 дней</span>
+        </div>
+        <h3>Нужно сделать новую пла...</h3>
+        <p>
+          На объекте Dariya срочно требуется новая планировка 5-го этажа...
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section>
+    <div class="section-title">
+      <span class="dot yellow"></span>
+      <h2>Проекты: 3</h2>
+      <button
+  class="btn-black"
+  onclick="window.location.href='addtask.html'">
+  + Добавить проект
+</button>
+
+    </div>
+
+    <div class="scroll-row">
+      <div class="project-card">
+        <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb">
+        <div class="project-label">
+          Проект: Shyraq
+          <span class="badge green">25 дней</span>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <img src="https://images.unsplash.com/photo-1529429611270-61f7a49a2a2a">
+        <div class="project-label">
+          Проект: Ansau
+          <span class="badge green">55 дней</span>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <img src="https://images.unsplash.com/photo-1503387762-592deb58ef4e">
+        <div class="project-label">
+          Проект: Dariya
+          <span class="badge green">55 дней</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>
