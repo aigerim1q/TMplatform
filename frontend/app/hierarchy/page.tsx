@@ -214,9 +214,9 @@ const orgData: Person = {
 
 function StatusBadge({ status }: { status: StatusType }) {
   const statusConfig = {
-    free: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Свободен' },
-    busy: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', label: 'Занят' },
-    sick: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500', label: 'Болен' },
+    free: { bg: 'bg-emerald-50 dark:bg-emerald-500/15', text: 'text-emerald-700 dark:text-emerald-200', dot: 'bg-emerald-500', label: 'Свободен' },
+    busy: { bg: 'bg-amber-50 dark:bg-amber-500/15', text: 'text-amber-700 dark:text-amber-200', dot: 'bg-amber-500', label: 'Занят' },
+    sick: { bg: 'bg-red-50 dark:bg-red-500/15', text: 'text-red-700 dark:text-red-200', dot: 'bg-red-500', label: 'Болен' },
   };
 
   const config = statusConfig[status];
@@ -233,31 +233,31 @@ function PersonCard({ person }: { person: Person }) {
   return (
     <div
       className={cn(
-        'bg-white rounded-xl p-3 border min-w-[210px] max-w-[260px] mx-auto shadow-sm text-left',
-        person.isDept && 'bg-gray-50'
+        'bg-white rounded-xl p-3 border min-w-[210px] max-w-[260px] mx-auto shadow-sm text-left dark:bg-slate-900 dark:border-slate-800 dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]',
+        person.isDept && 'bg-gray-50 dark:bg-slate-800/70'
       )}
     >
       <div className="flex items-center gap-2.5 mb-1.5">
-        <div className="w-10 h-10 rounded-full border-2 border-gray-200 bg-gray-100 flex items-center justify-center text-gray-400 font-bold flex-shrink-0">
+        <div className="w-10 h-10 rounded-full border-2 border-gray-200 bg-gray-100 flex items-center justify-center text-gray-400 font-bold flex-shrink-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
           ?
         </div>
 
         <div className="flex flex-col gap-0.5">
-          <div className="text-sm font-semibold text-gray-900 leading-tight">
+          <div className="text-sm font-semibold text-gray-900 leading-tight dark:text-slate-100">
             {person.title}
           </div>
-          <div className="text-sm text-gray-600">{person.name}</div>
+          <div className="text-sm text-gray-600 dark:text-slate-300">{person.name}</div>
           <StatusBadge status={person.status} />
         </div>
       </div>
 
       {person.note && (
-        <p className="text-xs text-gray-500 mt-1.5">{person.note}</p>
+        <p className="text-xs text-gray-500 mt-1.5 dark:text-slate-400">{person.note}</p>
       )}
 
       {/* ✅ КНОПКА ВЫБРАТЬ */}
       <button
-        className="mt-3 w-full rounded-lg bg-[#cdbb9a] py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+        className="mt-3 w-full rounded-lg bg-[#cdbb9a] py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 dark:bg-amber-400 dark:text-slate-900"
         disabled={person.status === 'busy'}
       >
         Выбрать
@@ -286,7 +286,7 @@ function OrgNode({ person }: { person: Person }) {
 
 export default function HierarchyPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Header - centered */}
       <div className="flex justify-center pt-6">
         <Header />
@@ -295,7 +295,7 @@ export default function HierarchyPage() {
       {/* Content */}
       <div className="px-6 py-8">
         <h1 className="text-xl font-semibold text-center mb-2">Иерархия строительной компании</h1>
-        <p className="text-sm text-gray-500 text-center mb-8">Организационная структура с отделами и сотрудниками</p>
+        <p className="text-sm text-gray-500 text-center mb-8 dark:text-slate-300">Организационная структура с отделами и сотрудниками</p>
 
         {/* Org Chart */}
         <div className="overflow-x-auto pb-10">
@@ -340,6 +340,13 @@ export default function HierarchyPage() {
         }
         .org-chart li:first-child::after {
           border-radius: 5px 0 0 0;
+        }
+        :global(.dark) .org-chart li::before,
+        :global(.dark) .org-chart li::after {
+          border-color: #475569;
+        }
+        :global(.dark) .org-chart li:last-child::before {
+          border-color: #475569;
         }
       `}</style>
     </div>

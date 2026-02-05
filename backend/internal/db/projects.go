@@ -68,7 +68,7 @@ type CreateProjectInput struct {
 	AssigneeIDs     []int
 }
 
-func ListProjects(ctx context.Context, pool *pgxpool.Pool, orgID int, limit int, offset int, sort string, order string) ([]Project, error) {
+func ListProjects(ctx context.Context, pool *pgxpool.Pool, orgID int, userID int, mineOnly bool, limit int, offset int, sort string, order string) ([]Project, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
@@ -78,6 +78,14 @@ func ListProjects(ctx context.Context, pool *pgxpool.Pool, orgID int, limit int,
 
 	orderBy := projectOrderBy(sort, order)
 
+	filter := ``
+	args := []any{orgID, limit, offset}
+
+	if mineOnly && userID > 0 {
+		filter = ` AND (p.owner_id = $4 OR EXISTS (SELECT 1 FROM project_assignees pa WHERE pa.project_id = p.id AND pa.user_id = $4))`
+		args = append(args, userID)
+	}
+
 	q := fmt.Sprintf(`
 SELECT p.id, p.org_id, p.owner_id, p.name, p.description, p.status, p.start_date, p.end_date,
        p.priority, p.image_url, p.budget_allocated, p.budget_spent, p.budget_currency,
@@ -86,12 +94,12 @@ SELECT p.id, p.org_id, p.owner_id, p.name, p.description, p.status, p.start_date
        COALESCE(COUNT(s.id), 0) AS total_count
 FROM projects p
 LEFT JOIN stages s ON s.project_id = p.id
-WHERE p.org_id = $1
+WHERE p.org_id = $1 AND p.status <> 'deleted'%s
 GROUP BY p.id
 ORDER BY %s
-LIMIT $2 OFFSET $3;`, orderBy)
+LIMIT $2 OFFSET $3;`, filter, orderBy)
 
-	rows, err := pool.Query(ctx, q, orgID, limit, offset)
+	rows, err := pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +149,7 @@ SELECT p.id, p.org_id, p.owner_id, p.name, p.description, p.status, p.start_date
        COALESCE(COUNT(s.id), 0) AS total_count
 FROM projects p
 LEFT JOIN stages s ON s.project_id = p.id
-WHERE p.org_id = $1 AND p.id = $2
+WHERE p.org_id = $1 AND p.id = $2 AND p.status <> 'deleted'
 GROUP BY p.id
 LIMIT 1;`
 
@@ -245,6 +253,18 @@ ON CONFLICT DO NOTHING;`
 	}
 
 	return GetProject(ctx, pool, input.OrgID, projectID)
+}
+
+func SoftDeleteProject(ctx context.Context, pool *pgxpool.Pool, orgID int, projectID int) (bool, error) {
+	// Hard delete to avoid status check constraint issues; cascades will clean stages/tasks/files.
+	res, err := pool.Exec(ctx,
+		`DELETE FROM projects WHERE id = $1 AND org_id = $2`,
+		projectID, orgID,
+	)
+	if err != nil {
+		return false, err
+	}
+	return res.RowsAffected() > 0, nil
 }
 
 func ListStages(ctx context.Context, pool *pgxpool.Pool, projectID int, sort string, order string) ([]Stage, error) {
@@ -363,6 +383,30 @@ ORDER BY u.email ASC;`
 
 func ListProjectAssignees(ctx context.Context, pool *pgxpool.Pool, projectID int) ([]Assignee, error) {
 	return listProjectAssignees(ctx, pool, projectID)
+}
+
+func SetProjectAssignees(ctx context.Context, pool *pgxpool.Pool, projectID int, userIDs []int) error {
+	tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `DELETE FROM project_assignees WHERE project_id = $1`, projectID); err != nil {
+		return err
+	}
+
+	insert := `INSERT INTO project_assignees (project_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	for _, uid := range userIDs {
+		if uid <= 0 {
+			continue
+		}
+		if _, err := tx.Exec(ctx, insert, projectID, uid); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
 }
 
 func projectOrderBy(sort string, order string) string {

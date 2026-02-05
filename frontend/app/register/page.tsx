@@ -1,58 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { register as registerUser } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-
-type RegisterResponse = {
-  accessToken: string;
-  id?: number;
-  email?: string;
-  org_id?: number;
-  role?: string;
-};
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-async function apiRegister(params: {
-  email: string;
-  password: string;
-  org_id: number;
-  role: string;
-}): Promise<RegisterResponse> {
-  const res = await fetch(`${API_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(params),
-  });
-
-  let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    // ignore
-  }
-
-  if (!res.ok) {
-    // бэк часто отдаёт {error:"..."} или просто текст — нормализуем
-    const msg =
-      data?.error ||
-      data?.message ||
-      (typeof data === "string" ? data : null) ||
-      `Register failed (${res.status})`;
-    throw new Error(msg);
-  }
-
-  return data as RegisterResponse;
-}
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -74,6 +39,12 @@ export default function RegisterPage() {
     return true;
   }, [firstName, lastName, email, password, password2, agree]);
 
+  const toggleTheme = () => {
+    if (!mounted) return;
+    const next = resolvedTheme === "dark" ? "light" : "dark";
+    setTheme(next);
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -82,16 +53,14 @@ export default function RegisterPage() {
       setLoading(true);
 
       // ВАЖНО: бэк требует org_id и role
-      const resp = await apiRegister({
+      await registerUser({
         email: email.trim(),
         password,
         org_id: 1,
-        role: "admin", // если надо безопаснее — поставь "employee"
+        role: "employee",
+        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        remember: true,
       });
-
-      if (resp.accessToken) {
-        localStorage.setItem("accessToken", resp.accessToken);
-      }
 
       router.push("/dashboard");
     } catch (err: any) {
@@ -102,9 +71,20 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen bg-white text-black">
-      <div className="mx-auto flex min-h-screen max-w-[880px] items-center justify-center px-6 py-10">
-        <div className="w-full max-w-[560px] rounded-2xl border bg-white/60 p-8 shadow-[0px_4px_90px_0px_rgba(240,230,218,1)]">
+    <main className="min-h-screen bg-gradient-to-br from-white via-[#faf7f2] to-[#f3e8dd] text-black dark:from-[#0b0b0d] dark:via-[#0f1117] dark:to-[#0b0b0d] dark:text-white">
+      <div className="mx-auto flex min-h-screen max-w-[880px] flex-col items-center justify-center px-6 py-10">
+        <div className="flex w-full justify-end">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-800 dark:text-amber-200"
+            aria-label="Переключить тему"
+          >
+            {mounted && resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+
+        <div className="w-full max-w-[560px] rounded-2xl border border-white/20 bg-white/80 p-8 shadow-[0px_4px_90px_0px_rgba(240,230,218,1)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_25px_80px_rgba(0,0,0,0.55)]">
           <div className="text-center">
             <div className="text-sm text-[#58616F]">
               Уже есть аккаунт?{" "}

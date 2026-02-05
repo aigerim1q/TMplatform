@@ -5,7 +5,7 @@ import DocumentsContent from "@/components/documents-content";
 
 export default function DocumentsPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       <div className="flex justify-center pt-6">
         <Header />
       </div>

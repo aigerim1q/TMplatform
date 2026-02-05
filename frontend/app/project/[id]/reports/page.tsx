@@ -2,13 +2,20 @@
 
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Heart, MessageCircle, Share2, Flag, AlertCircle, Users, Download } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Header from '@/components/header';
 
 export default function ReportsPage() {
   const router = useRouter();
   const params = useParams();
   const [activeTab, setActiveTab] = useState('reports');
+  const mediaInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<string[]>([]);
+  const openMediaPicker = () => mediaInputRef.current?.click();
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    setSelectedMedia(files.map((f) => f.name));
+  };
 
   const reportData = {
     title: 'Возведение колонн на 1 этаже несущих конструкции',
@@ -45,7 +52,7 @@ export default function ReportsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Header - centered */}
       <div className="flex justify-center pt-6">
         <Header />
@@ -57,31 +64,31 @@ export default function ReportsPage() {
         <div className="flex items-center gap-3 mb-8">
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
           >
             ← Назад
           </button>
           
           <button 
             onClick={() => router.push(`/project/${params.id}`)}
-            className="bg-gray-500 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-600 transition-colors"
+            className="bg-gray-500 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-gray-600 transition-colors dark:bg-slate-700 dark:hover:bg-slate-600"
           >
             Задачи
           </button>
-          <button className="bg-black text-white px-4 py-2 rounded-full text-sm font-semibold">
+          <button className="bg-black text-white px-4 py-2 rounded-full text-sm font-semibold dark:bg-amber-500 dark:text-slate-950">
             Отчеты
           </button>
           <button 
             onClick={() => router.push('/documents')}
-            className="bg-amber-100 text-amber-900 px-4 py-2 rounded-full text-sm font-semibold hover:bg-amber-200 transition-colors"
+            className="bg-amber-100 text-amber-900 px-4 py-2 rounded-full text-sm font-semibold hover:bg-amber-200 transition-colors dark:bg-amber-400/20 dark:text-amber-200 dark:hover:bg-amber-400/30"
           >
             Документы
           </button>
           
-          <button className="bg-black text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-800">
+          <button className="bg-black text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400">
             Отправить
           </button>
-          <button className="bg-yellow-200 text-gray-900 px-6 py-2 rounded-full text-sm font-semibold hover:bg-yellow-300">
+          <button className="bg-yellow-200 text-gray-900 px-6 py-2 rounded-full text-sm font-semibold hover:bg-yellow-300 dark:bg-amber-400/20 dark:text-amber-200 dark:hover:bg-amber-400/30">
             Пометить как срочное!
           </button>
         </div>
@@ -92,7 +99,7 @@ export default function ReportsPage() {
           <div className="col-span-2">
             {/* Report Header */}
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">{reportData.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4 dark:text-white">{reportData.title}</h1>
 
               <div className="flex items-start gap-4 mb-6">
                 <img
@@ -101,15 +108,15 @@ export default function ReportsPage() {
                   className="w-12 h-12 rounded-full object-cover"
                 />
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{reportData.author}</p>
-                  <p className="text-sm text-gray-600">Строительный персонал</p>
-                  <div className="flex gap-4 mt-2 text-xs text-gray-600">
+                  <p className="font-semibold text-gray-900 dark:text-slate-100">{reportData.author}</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-300">Строительный персонал</p>
+                  <div className="flex gap-4 mt-2 text-xs text-gray-600 dark:text-slate-400">
                     <span>{reportData.time}</span>
                     <span>●</span>
                     <span>{reportData.date}</span>
                   </div>
                 </div>
-                <button className="text-gray-400 hover:text-gray-600">
+                <button className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                   </svg>
@@ -118,7 +125,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Report Description */}
-            <p className="text-gray-700 mb-6 leading-relaxed">
+            <p className="text-gray-700 mb-6 leading-relaxed dark:text-slate-200">
               {reportData.description}
             </p>
 
@@ -134,26 +141,26 @@ export default function ReportsPage() {
             ))}
 
             {/* Engagement Section */}
-            <div className="flex items-center gap-8 py-4 border-t border-b border-gray-200 mb-8">
-              <button className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors">
+            <div className="flex items-center gap-8 py-4 border-t border-b border-gray-200 mb-8 dark:border-slate-800">
+              <button className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors dark:text-slate-300">
                 <Heart className="w-5 h-5" />
                 <span className="text-sm">{reportData.likes}</span>
               </button>
-              <button className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors">
+              <button className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors dark:text-slate-300">
                 <MessageCircle className="w-5 h-5" />
                 <span className="text-sm">{reportData.comments}</span>
               </button>
-              <button className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-colors">
+              <button className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-colors dark:text-slate-300">
                 <Share2 className="w-5 h-5" />
               </button>
-              <button className="flex items-center gap-2 text-gray-600 hover:text-yellow-500 transition-colors">
+              <button className="flex items-center gap-2 text-gray-600 hover:text-yellow-500 transition-colors dark:text-slate-300">
                 <Flag className="w-5 h-5" />
               </button>
             </div>
 
             {/* Comments Section */}
             <div className="mb-8">
-              <h3 className="font-semibold text-gray-900 mb-4">Комментарии ({reportData.comments})</h3>
+              <h3 className="font-semibold text-gray-900 mb-4 dark:text-white">Комментарии ({reportData.comments})</h3>
               
               {comments.map((comment, idx) => (
                 <div key={idx} className="flex gap-4 mb-6">
@@ -163,10 +170,10 @@ export default function ReportsPage() {
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div className="flex-1">
-                    <div className="bg-gray-100 rounded-2xl p-4">
-                      <p className="font-semibold text-sm text-gray-900">{comment.author}</p>
-                      <p className="text-xs text-gray-600 mb-2">{comment.role}</p>
-                      <p className="text-sm text-gray-700">{comment.text}</p>
+                    <div className="bg-gray-100 rounded-2xl p-4 dark:bg-slate-900 dark:border dark:border-slate-800">
+                      <p className="font-semibold text-sm text-gray-900 dark:text-slate-100">{comment.author}</p>
+                      <p className="text-xs text-gray-600 mb-2 dark:text-slate-300">{comment.role}</p>
+                      <p className="text-sm text-gray-700 dark:text-slate-200">{comment.text}</p>
                     </div>
                   </div>
                 </div>
@@ -176,7 +183,7 @@ export default function ReportsPage() {
               <div className="mt-6">
                 <textarea
                   placeholder="Добавить комментарий..."
-                  className="w-full border border-gray-300 rounded-2xl p-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full border border-gray-300 rounded-2xl p-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
                   rows={3}
                 />
               </div>
@@ -186,35 +193,35 @@ export default function ReportsPage() {
           {/* Right Sidebar */}
           <div className="col-span-1">
             {/* Attachment Info Card */}
-            <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-              <p className="text-sm text-gray-600 mb-4">Прикрепленный проект</p>
-              <p className="text-lg font-bold text-gray-900 mb-6">{reportData.attachments.projectDate}</p>
+            <div className="bg-gray-50 rounded-2xl p-6 mb-6 dark:bg-slate-900 dark:border dark:border-slate-800">
+              <p className="text-sm text-gray-600 mb-4 dark:text-slate-300">Прикрепленный проект</p>
+              <p className="text-lg font-bold text-gray-900 mb-6 dark:text-slate-100">{reportData.attachments.projectDate}</p>
               
               <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-2">Останок дней</p>
-                <p className="text-2xl font-bold text-gray-900">{reportData.attachments.daysLeft}</p>
+                <p className="text-sm text-gray-600 mb-2 dark:text-slate-300">Останок дней</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{reportData.attachments.daysLeft}</p>
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 mb-2">Прогресс</p>
-                <div className="w-full bg-gray-300 rounded-full h-2 mb-2">
+                <p className="text-sm text-gray-600 mb-2 dark:text-slate-300">Прогресс</p>
+                <div className="w-full bg-gray-300 rounded-full h-2 mb-2 dark:bg-slate-800">
                   <div
                     className="bg-yellow-400 h-2 rounded-full"
                     style={{ width: `${reportData.attachments.progress}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-600">{reportData.attachments.progress}%</p>
+                <p className="text-xs text-gray-600 dark:text-slate-400">{reportData.attachments.progress}%</p>
               </div>
             </div>
 
             {/* Responsible Section */}
-            <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+            <div className="bg-gray-50 rounded-2xl p-6 mb-6 dark:bg-slate-900 dark:border dark:border-slate-800">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2 dark:text-slate-100">
                   <Users className="w-4 h-4" />
                   Ответственные
                 </h3>
-                <button className="text-gray-400 hover:text-gray-600">✕</button>
+                <button className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">✕</button>
               </div>
 
               <div className="space-y-3">
@@ -226,61 +233,75 @@ export default function ReportsPage() {
                       className="w-8 h-8 rounded-full object-cover"
                     />
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{person.name}</p>
-                      <p className="text-xs text-gray-600">{person.role}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{person.name}</p>
+                      <p className="text-xs text-gray-600 dark:text-slate-300">{person.role}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <button className="w-full mt-4 py-2 px-4 border-2 border-gray-300 rounded-full text-sm font-semibold text-gray-900 hover:bg-gray-100 transition-colors">
+              <button className="w-full mt-4 py-2 px-4 border-2 border-gray-300 rounded-full text-sm font-semibold text-gray-900 hover:bg-gray-100 transition-colors dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
                 +Добавить ответственных
               </button>
             </div>
 
             {/* Warnings Section */}
             {reportData.warnings && (
-              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex gap-3">
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 flex gap-3 dark:bg-orange-500/15 dark:border-orange-500/40">
                 <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-orange-900 mb-1">Прочие отсрочки</p>
-                  <p className="text-xs text-orange-800">{reportData.warnings}</p>
+                  <p className="text-sm font-semibold text-orange-900 mb-1 dark:text-orange-200">Прочие отсрочки</p>
+                  <p className="text-xs text-orange-800 dark:text-orange-200">{reportData.warnings}</p>
                 </div>
               </div>
             )}
 
             {/* Create Report Card */}
-            <div className="bg-white rounded-2xl p-8 border border-gray-200">
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 dark:bg-slate-900 dark:border-slate-800">
               <div className="flex items-center gap-3 mb-6">
                 <span className="text-2xl">📝</span>
-                <h3 className="text-2xl font-bold text-gray-900">Создать отчет</h3>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Создать отчет</h3>
               </div>
 
               {/* Description Section */}
               <div className="mb-8">
-                <label className="block text-xs font-semibold text-gray-500 mb-3 tracking-wide">ОПИСАНИЕ РАБОТЫ</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-3 tracking-wide dark:text-slate-300">ОПИСАНИЕ РАБОТЫ</label>
                 <textarea
                   placeholder="Что было сделано сегодня?"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-32"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-32 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
                 />
               </div>
 
               {/* Media Files Section */}
               <div className="mb-8">
-                <label className="block text-xs font-semibold text-gray-500 mb-4 tracking-wide">МЕДИА ФАЙЛЫ</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-4 tracking-wide dark:text-slate-300">МЕДИА ФАЙЛЫ</label>
                 
-                <div className="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center">
+                <div
+                  className="bg-white border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center cursor-pointer dark:bg-slate-900 dark:border-slate-700 hover:border-amber-400/60"
+                  onClick={openMediaPicker}
+                >
                   <div className="flex justify-center gap-4 mb-4">
                     <div className="text-4xl">📷</div>
                     <div className="text-4xl">📄</div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">Перетащите сюда фото или чертежи</p>
-                  <p className="text-xs text-gray-400">JPG, PNG, PDF до 25 МБ</p>
+                  <p className="text-sm text-gray-600 mb-1 dark:text-slate-300">Перетащите сюда фото или чертежи</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">JPG, PNG, PDF до 25 МБ</p>
+                  {selectedMedia.length > 0 && (
+                    <p className="mt-3 text-xs text-amber-300">Выбрано: {selectedMedia.join(', ')}</p>
+                  )}
                 </div>
+                <input
+                  ref={mediaInputRef}
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  className="hidden"
+                  onChange={handleMediaChange}
+                />
               </div>
 
               {/* Publish Button */}
-              <button className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors">
+              <button className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-3 px-6 rounded-xl font-semibold transition-colors dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400">
                 Опубликовать
               </button>
             </div>

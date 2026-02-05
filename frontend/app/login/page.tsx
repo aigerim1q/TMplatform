@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { Moon, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -41,6 +43,10 @@ function IconPlaceholder({ label }: { label: string }) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,6 +59,12 @@ export default function LoginPage() {
     if (!email.trim() || !password.trim()) return false;
     return true;
   }, [email, password]);
+
+  const toggleTheme = () => {
+    if (!mounted) return;
+    const next = resolvedTheme === "dark" ? "light" : "dark";
+    setTheme(next);
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,8 +89,19 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-white text-black">
-      <div className="mx-auto flex items-center justify-center px-8 py-16">
+    <main className="min-h-screen bg-gradient-to-br from-white via-[#faf7f2] to-[#f3e8dd] text-black dark:from-[#0b0b0d] dark:via-[#0f1117] dark:to-[#0b0b0d] dark:text-white">
+      <div className="mx-auto flex min-h-screen max-w-[1200px] flex-col items-center justify-center px-8 py-12">
+        <div className="flex w-full justify-end">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:bg-slate-800 dark:text-amber-200"
+            aria-label="Переключить тему"
+          >
+            {mounted && resolvedTheme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+
         <div className="flex w-full max-w-[1080px] flex-col items-center justify-center gap-10 lg:flex-row lg:gap-14">
           {/* Left */}
           <section className="flex-1">
@@ -93,49 +116,49 @@ export default function LoginPage() {
               <h1 className="text-[37px] font-bold leading-tight">
                 Управление строительными проектами
               </h1>
-              <p className="mt-4 text-lg leading-relaxed text-[#505872]">
+              <p className="mt-4 text-lg leading-relaxed text-[#505872] dark:text-slate-300">
                 Комплексная платформа для эффективного управления строительными
                 процессами, контроля качества и координации команд.
               </p>
 
               <div className="mt-10 space-y-6">
                 <div className="flex items-start gap-4">
-                  <div className="grid h-[41px] w-[41px] place-items-center rounded-xl bg-black/5">
+                  <div className="grid h-[41px] w-[41px] place-items-center rounded-xl bg-black/5 dark:bg-white/10">
                     <IconPlaceholder label="A" />
                   </div>
                   <div>
-                    <div className="text-[16.5px] font-medium">
+                    <div className="text-[16.5px] font-medium text-black dark:text-white">
                       Аналитика проектов
                     </div>
-                    <div className="mt-1 text-sm text-black/60">
+                    <div className="mt-1 text-sm text-black/60 dark:text-slate-400">
                       Отслеживайте процесс в реальном времени
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="grid h-[41px] w-[41px] place-items-center rounded-xl bg-black/5">
+                  <div className="grid h-[41px] w-[41px] place-items-center rounded-xl bg-black/5 dark:bg-white/10">
                     <IconPlaceholder label="T" />
                   </div>
                   <div>
-                    <div className="text-[16.5px] font-medium">
+                    <div className="text-[16.5px] font-medium text-black dark:text-white">
                       Командная работа
                     </div>
-                    <div className="mt-1 text-sm text-black/60">
+                    <div className="mt-1 text-sm text-black/60 dark:text-slate-400">
                       Координация всех участников проекта
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="grid h-[41px] w-[41px] place-items-center rounded-xl bg-black/5">
+                  <div className="grid h-[41px] w-[41px] place-items-center rounded-xl bg-black/5 dark:bg-white/10">
                     <IconPlaceholder label="S" />
                   </div>
                   <div>
-                    <div className="text-[16.5px] font-medium">
+                    <div className="text-[16.5px] font-medium text-black dark:text-white">
                       Безопасность данных
                     </div>
-                    <div className="mt-1 text-sm text-black/60">
+                    <div className="mt-1 text-sm text-black/60 dark:text-slate-400">
                       Надежная защита корпоративной информации
                     </div>
                   </div>
@@ -146,7 +169,7 @@ export default function LoginPage() {
 
           {/* Right */}
           <section className="w-full max-w-[450px]">
-            <Card className="rounded-[15px] border-0 bg-[rgba(255,255,255,0.5)] shadow-[0px_4px_90px_0px_rgba(240,230,218,1)]">
+            <Card className="rounded-[15px] border border-white/20 bg-white/80 shadow-[0px_4px_90px_0px_rgba(240,230,218,1)] backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_25px_80px_rgba(0,0,0,0.55)]">
               <CardHeader className="pb-0">
                 <div className="mx-auto mt-[35px] w-[254px] text-center">
                   <div className="text-[24.5px] font-semibold">

@@ -136,7 +136,7 @@ export default function TaskDetail() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       {/* Header - centered */}
       <div className="flex justify-center pt-6">
         <Header />
@@ -147,56 +147,56 @@ export default function TaskDetail() {
         <div className="flex items-center gap-3 mb-8">
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
           >
             ← Назад
           </button>
           
-          <button className="bg-black text-white px-6 py-2 rounded-full text-sm font-semibold">
+          <button className="bg-black text-white px-6 py-2 rounded-full text-sm font-semibold dark:bg-amber-500 dark:text-slate-950">
             Задача
           </button>
           <button 
             onClick={() => router.push(`/project/${params.id}/reports`)}
-            className="bg-gray-400 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-500 transition-colors"
+            className="bg-gray-400 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-500 transition-colors dark:bg-slate-700 dark:hover:bg-slate-600"
           >
             Отчеты
           </button>
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">{taskData.title}</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 dark:text-white">{taskData.title}</h1>
 
         {/* Info Cards */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {/* Deadline Card */}
-          <div className="bg-red-100 rounded-2xl p-4">
+          <div className="bg-red-100 rounded-2xl p-4 dark:bg-red-500/15">
             <div className="flex items-start gap-3">
-              <Clock className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+              <Clock className="w-6 h-6 text-red-600 flex-shrink-0 mt-1 dark:text-red-300" />
               <div>
-                <p className="text-sm text-gray-700 font-semibold">{taskData.deadline}</p>
-                <p className="text-sm text-gray-600">{taskData.startDate}</p>
+                <p className="text-sm text-gray-700 font-semibold dark:text-slate-100">{taskData.deadline}</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">{taskData.startDate}</p>
               </div>
             </div>
           </div>
 
           {/* Responsible Card */}
-          <div className="bg-white border-2 border-gray-300 rounded-2xl p-4">
+          <div className="bg-white border-2 border-gray-300 rounded-2xl p-4 dark:bg-slate-900 dark:border-slate-800">
             <div className="flex items-start gap-3">
-              <Users className="w-6 h-6 text-gray-700 flex-shrink-0 mt-1" />
+              <Users className="w-6 h-6 text-gray-700 flex-shrink-0 mt-1 dark:text-slate-200" />
               <div>
-                <p className="text-sm text-gray-900 font-semibold">Ответственные: {taskData.responsible.join(', ')}</p>
-                <button className="text-blue-600 text-sm mt-1 hover:underline">↗</button>
+                <p className="text-sm text-gray-900 font-semibold dark:text-slate-100">Ответственные: {taskData.responsible.join(', ')}</p>
+                <button className="text-blue-600 text-sm mt-1 hover:underline dark:text-blue-300">↗</button>
               </div>
             </div>
           </div>
 
           {/* Status Card */}
-          <div className="bg-black rounded-2xl p-4 text-white">
+          <div className="bg-black rounded-2xl p-4 text-white dark:bg-slate-800 dark:text-slate-100">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-6 h-6 flex-shrink-0 mt-1" />
               <div>
                 <p className="text-sm font-semibold">{taskData.issue}</p>
-                <button className="text-gray-300 text-sm mt-1 hover:underline">↗</button>
+                <button className="text-gray-300 text-sm mt-1 hover:underline dark:text-slate-300">↗</button>
               </div>
             </div>
           </div>
@@ -208,10 +208,10 @@ export default function TaskDetail() {
           <div className="col-span-2">
             {/* Preparation Section */}
             <div className="mb-8">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Подготовка</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 dark:text-white">Подготовка</h2>
               <ul className="space-y-2">
                 {taskData.preparation.map((item, idx) => (
-                  <li key={idx} className={`text-sm ${idx === 1 ? 'bg-yellow-200 px-3 py-2 rounded' : ''} text-gray-700`}>
+                  <li key={idx} className={`text-sm ${idx === 1 ? 'bg-yellow-200 px-3 py-2 rounded dark:bg-amber-500/20' : ''} text-gray-700 dark:text-slate-200`}>
                     • {item}
                   </li>
                 ))}
@@ -220,10 +220,10 @@ export default function TaskDetail() {
 
             {/* Stages Section */}
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Этапы выполнения</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-4 dark:text-white">Этапы выполнения</h2>
               <div className="space-y-4">
                 {taskData.stages.map((stage, idx) => (
-                  <div key={idx} className="border border-gray-200 rounded-xl p-4">
+                  <div key={idx} className="border border-gray-200 rounded-xl p-4 dark:border-slate-800 dark:bg-slate-900/70">
                     <div className="flex items-start gap-3 mb-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                         stage.status === 'Выполнено' ? 'bg-green-100' : 'bg-orange-100'
@@ -233,8 +233,8 @@ export default function TaskDetail() {
                         }`} />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{stage.title}</h3>
-                        <p className="text-sm text-gray-600 mt-2">{stage.description}</p>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{stage.title}</h3>
+                        <p className="text-sm text-gray-600 mt-2 dark:text-slate-300">{stage.description}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
@@ -242,7 +242,7 @@ export default function TaskDetail() {
                         }`}>
                           {stage.status}
                         </span>
-                        {stage.days && <span className="text-xs text-red-600 font-semibold">{stage.days}</span>}
+                        {stage.days && <span className="text-xs text-red-600 font-semibold dark:text-red-300">{stage.days}</span>}
                       </div>
                     </div>
                   </div>
@@ -250,7 +250,7 @@ export default function TaskDetail() {
               </div>
 
               {/* Add Stage Button */}
-              <button className="w-full mt-6 py-2 px-4 border-2 border-yellow-600 text-yellow-600 rounded-full font-semibold hover:bg-yellow-50 transition-colors">
+              <button className="w-full mt-6 py-2 px-4 border-2 border-yellow-600 text-yellow-600 rounded-full font-semibold hover:bg-yellow-50 transition-colors dark:border-amber-400 dark:text-amber-300 dark:hover:bg-amber-400/20">
                 + Добавить этап проекта
               </button>
             </div>
@@ -259,31 +259,31 @@ export default function TaskDetail() {
           {/* Right Column */}
           <div className="col-span-1">
             {/* Action Buttons */}
-            <div className="bg-yellow-600 rounded-2xl p-4 text-white font-semibold text-center cursor-pointer hover:bg-yellow-700 transition-colors mb-4">
+            <div className="bg-yellow-600 rounded-2xl p-4 text-white font-semibold text-center cursor-pointer hover:bg-yellow-700 transition-colors mb-4 dark:bg-amber-500 dark:text-slate-950">
               ✓ Завершить задачу
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <button className="py-3 px-4 border-2 border-gray-300 rounded-lg text-gray-900 font-semibold hover:bg-gray-50 transition-colors">
+              <button className="py-3 px-4 border-2 border-gray-300 rounded-lg text-gray-900 font-semibold hover:bg-gray-50 transition-colors dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
                 Отложить
               </button>
               <button 
                 onClick={() => setIsDelegateModalOpen(true)}
-                className="py-3 px-4 border-2 border-gray-300 rounded-lg text-gray-900 font-semibold hover:bg-gray-50 transition-colors"
+                className="py-3 px-4 border-2 border-gray-300 rounded-lg text-gray-900 font-semibold hover:bg-gray-50 transition-colors dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
               >
                 Делегировать
               </button>
             </div>
 
             {/* Comments Section */}
-            <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200">
+            <div className="bg-gray-50 rounded-3xl p-6 border border-gray-200 dark:bg-slate-900 dark:border-slate-800">
               <div className="flex gap-6 mb-6">
                 <button 
                   onClick={() => setActiveTab('comments')}
                   className={`font-semibold text-base pb-1 transition-all ${
                     activeTab === 'comments' 
-                      ? 'text-gray-900 border-b-2 border-gray-900' 
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-gray-900 border-b-2 border-gray-900 dark:text-white dark:border-white' 
+                      : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   Комментарии
@@ -292,8 +292,8 @@ export default function TaskDetail() {
                   onClick={() => setActiveTab('history')}
                   className={`font-semibold text-base pb-1 transition-all ${
                     activeTab === 'history' 
-                      ? 'text-gray-900 border-b-2 border-gray-900' 
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-gray-900 border-b-2 border-gray-900 dark:text-white dark:border-white' 
+                      : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
                   История
@@ -305,9 +305,9 @@ export default function TaskDetail() {
                   <div className="space-y-4 mb-6">
                     {/* Date Separator */}
                     <div className="flex items-center gap-3 py-2">
-                      <div className="flex-1 h-px bg-gray-300"></div>
-                      <span className="text-gray-400 text-sm font-medium">Сегодня</span>
-                      <div className="flex-1 h-px bg-gray-300"></div>
+                      <div className="flex-1 h-px bg-gray-300 dark:bg-slate-700"></div>
+                      <span className="text-gray-400 text-sm font-medium dark:text-slate-400">Сегодня</span>
+                      <div className="flex-1 h-px bg-gray-300 dark:bg-slate-700"></div>
                     </div>
 
                     {/* First Comment */}
@@ -320,19 +320,19 @@ export default function TaskDetail() {
                         />
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-900">Зейнулла Ршыман</p>
-                            <p className="text-gray-500 text-xs">14:32</p>
+                            <p className="font-semibold text-gray-900 dark:text-slate-100">Зейнулла Ршыман</p>
+                            <p className="text-gray-500 text-xs dark:text-slate-400">14:32</p>
                           </div>
-                          <p className="text-gray-700 text-sm mt-1">А почему она может быть крива?<br />Мы же проверили уровни на<br />прошлой неделе.</p>
+                          <p className="text-gray-700 text-sm mt-1 dark:text-slate-200">А почему она может быть крива?<br />Мы же проверили уровни на<br />прошлой неделе.</p>
                         </div>
                       </div>
                     </div>
 
                     {/* Status Change Separator */}
                     <div className="flex items-center gap-3 py-3 mt-4">
-                      <div className="flex-1 h-px bg-gray-300"></div>
-                      <span className="text-gray-400 text-sm font-medium">Статус изменен</span>
-                      <div className="flex-1 h-px bg-gray-300"></div>
+                      <div className="flex-1 h-px bg-gray-300 dark:bg-slate-700"></div>
+                      <span className="text-gray-400 text-sm font-medium dark:text-slate-400">Статус изменен</span>
+                      <div className="flex-1 h-px bg-gray-300 dark:bg-slate-700"></div>
                     </div>
 
                     {/* Status Update */}
@@ -342,24 +342,24 @@ export default function TaskDetail() {
                         alt="avatar" 
                         className="w-6 h-6 rounded-full"
                       />
-                      <p className="text-gray-600 text-sm">Айдын Р. изменил статус на <span className="text-yellow-600 font-semibold">В работе</span></p>
+                      <p className="text-gray-600 text-sm dark:text-slate-300">Айдын Р. изменил статус на <span className="text-yellow-600 font-semibold dark:text-amber-300">В работе</span></p>
                     </div>
 
                     {/* Your Comment */}
                     <div className="mt-4">
                       <div className="flex items-end justify-end gap-2 mb-1">
-                        <p className="text-gray-500 text-xs">14:45</p>
-                        <span className="text-gray-600 text-xs font-semibold">Вы</span>
+                        <p className="text-gray-500 text-xs dark:text-slate-400">14:45</p>
+                        <span className="text-gray-600 text-xs font-semibold dark:text-slate-300">Вы</span>
                         <img 
                           src="https://i.pinimg.com/736x/23/00/64/230064c1d688b4553c244292c8bb3220.jpg" 
                           alt="avatar" 
                           className="w-8 h-8 rounded-full"
                         />
                       </div>
-                      <div className="bg-yellow-500 text-white rounded-2xl p-4 max-w-xs ml-auto">
+                      <div className="bg-yellow-500 text-white rounded-2xl p-4 max-w-xs ml-auto dark:bg-amber-500 dark:text-slate-950">
                         <p className="text-sm">Там была проблема с фиксаторами. Исправили, но нужен доп. контроль сегодня.</p>
                       </div>
-                      <p className="text-gray-500 text-xs text-right mt-2">Просмотрено</p>
+                      <p className="text-gray-500 text-xs text-right mt-2 dark:text-slate-400">Просмотрено</p>
                     </div>
                   </div>
 
@@ -369,20 +369,20 @@ export default function TaskDetail() {
                       <input
                         type="text"
                         placeholder="Напишать комментарий..."
-                        className="flex-1 bg-white border border-gray-200 rounded-full px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder-gray-400"
+                        className="flex-1 bg-white border border-gray-200 rounded-full px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder-gray-400 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:placeholder-slate-500"
                       />
-                      <button className="bg-yellow-500 text-white w-10 h-10 rounded-full hover:bg-yellow-600 transition-colors flex items-center justify-center">
+                      <button className="bg-yellow-500 text-white w-10 h-10 rounded-full hover:bg-yellow-600 transition-colors flex items-center justify-center dark:bg-amber-500 dark:hover:bg-amber-400">
                         <Send className="w-5 h-5" />
                       </button>
                     </div>
                     <div className="flex gap-4 px-4">
-                      <button className="text-gray-600 text-sm hover:text-gray-900 transition-colors flex items-center gap-1">
+                      <button className="text-gray-600 text-sm hover:text-gray-900 transition-colors flex items-center gap-1 dark:text-slate-300 dark:hover:text-white">
                         📎 Файл
                       </button>
-                      <button className="text-gray-600 text-sm hover:text-gray-900 transition-colors flex items-center gap-1">
+                      <button className="text-gray-600 text-sm hover:text-gray-900 transition-colors flex items-center gap-1 dark:text-slate-300 dark:hover:text-white">
                         📷 Фото
                       </button>
-                      <button className="text-gray-600 text-sm hover:text-gray-900 transition-colors flex items-center gap-1">
+                      <button className="text-gray-600 text-sm hover:text-gray-900 transition-colors flex items-center gap-1 dark:text-slate-300 dark:hover:text-white">
                         @ Упомянуть
                       </button>
                     </div>

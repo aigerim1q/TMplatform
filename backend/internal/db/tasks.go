@@ -61,7 +61,7 @@ RETURNING id, created_at, updated_at
 func GetTaskByID(ctx context.Context, db *pgxpool.Pool, taskID int) (*Task, error) {
 	q := `
 SELECT t.id, t.stage_id, t.parent_id, t.assignee_id, t.author_id, t.title, t.description, t.status, t.priority, t.start_date, t.due_date, t.created_at, t.updated_at,
-       u1.name as assignee_name, u2.name as author_name,
+	   COALESCE(u1.display_name, u1.email) as assignee_name, COALESCE(u2.display_name, u2.email) as author_name,
        (SELECT COUNT(*) FROM files f WHERE f.task_id = t.id) as files_count,
        (SELECT COUNT(*) FROM tasks st WHERE st.parent_id = t.id) as subtasks_count
 FROM tasks t
@@ -83,7 +83,7 @@ WHERE t.id = $1
 func ListTasksByStage(ctx context.Context, db *pgxpool.Pool, stageID int) ([]Task, error) {
 	q := `
 SELECT t.id, t.stage_id, t.parent_id, t.assignee_id, t.author_id, t.title, t.description, t.status, t.priority, t.start_date, t.due_date, t.created_at, t.updated_at,
-       u1.name as assignee_name, u2.name as author_name,
+	   COALESCE(u1.display_name, u1.email) as assignee_name, COALESCE(u2.display_name, u2.email) as author_name,
        (SELECT COUNT(*) FROM files f WHERE f.task_id = t.id) as files_count,
        (SELECT COUNT(*) FROM tasks st WHERE st.parent_id = t.id) as subtasks_count
 FROM tasks t
@@ -98,7 +98,7 @@ ORDER BY t.priority DESC, t.created_at ASC
 func ListSubtasks(ctx context.Context, db *pgxpool.Pool, parentID int) ([]Task, error) {
 	q := `
 SELECT t.id, t.stage_id, t.parent_id, t.assignee_id, t.author_id, t.title, t.description, t.status, t.priority, t.start_date, t.due_date, t.created_at, t.updated_at,
-       u1.name as assignee_name, u2.name as author_name,
+	   COALESCE(u1.display_name, u1.email) as assignee_name, COALESCE(u2.display_name, u2.email) as author_name,
        (SELECT COUNT(*) FROM files f WHERE f.task_id = t.id) as files_count,
        (SELECT COUNT(*) FROM tasks st WHERE st.parent_id = t.id) as subtasks_count
 FROM tasks t
@@ -141,41 +141,61 @@ func scanTasks(ctx context.Context, db *pgxpool.Pool, query string, args ...any)
 	return tasks, nil
 }
 
-func ListTasksForDashboard(ctx context.Context, db *pgxpool.Pool, orgID int, userID int, scope string, limit int) ([]TaskSummary, error) {
+func ListTasksForDashboard(ctx context.Context, db *pgxpool.Pool, orgID int, userID int, scope string, limit int, projectID int, mine bool) ([]TaskSummary, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
 
-	where := "p.org_id = $1 AND t.parent_id IS NULL"
+	where := "p.org_id = $1 AND p.status <> 'deleted' AND t.parent_id IS NULL"
 	args := []any{orgID}
 	argPos := 2
 
+	if projectID > 0 {
+		where = fmt.Sprintf("%s AND p.id = $%d", where, argPos)
+		args = append(args, projectID)
+		argPos++
+	}
+
 	switch scope {
 	case "urgent":
-		where = fmt.Sprintf("%s AND t.assignee_id = $%d AND t.due_date IS NOT NULL AND t.due_date < now() + interval '3 days'", where, argPos)
+		// Срочные: задачи с дедлайном <=5 дней или задачи проектов с дедлайном <=5 дней
+		where = fmt.Sprintf("%s AND (t.assignee_id = $%d OR t.author_id = $%d) AND (t.due_date IS NOT NULL AND t.due_date < now() + interval '5 days' OR p.end_date IS NOT NULL AND p.end_date < now() + interval '5 days')", where, argPos, argPos)
 		args = append(args, userID)
 		argPos++
 	case "subordinate":
-		where = fmt.Sprintf("%s AND t.assignee_id IN (SELECT id FROM users WHERE manager_id = $%d)", where, argPos)
+		// Подчинённые: пользователи с manager_id = current user OR ответственные в проектах, где текущий пользователь владелец
+		where = fmt.Sprintf(`%s AND t.assignee_id IN (
+			SELECT id FROM users WHERE manager_id = $%d
+			UNION
+			SELECT pa.user_id FROM project_assignees pa
+			JOIN projects p2 ON p2.id = pa.project_id
+			WHERE p2.owner_id = $%d
+		)`, where, argPos, argPos)
 		args = append(args, userID)
 		argPos++
 	default:
-		where = fmt.Sprintf("%s AND t.assignee_id = $%d", where, argPos)
-		args = append(args, userID)
-		argPos++
+		if mine {
+			where = fmt.Sprintf("%s AND (t.assignee_id = $%d OR t.author_id = $%d)", where, argPos, argPos+1)
+			args = append(args, userID, userID)
+			argPos += 2
+		} else {
+			where = fmt.Sprintf("%s AND t.assignee_id = $%d", where, argPos)
+			args = append(args, userID)
+			argPos++
+		}
 	}
 
 	q := fmt.Sprintf(`
 SELECT t.id, t.stage_id, s.title, p.id, p.name, p.image_url,
        t.title, t.description, t.status, t.priority, t.due_date,
-       t.assignee_id, u1.name as assignee_name, u2.name as author_name
+	   t.assignee_id, COALESCE(u1.display_name, u1.email) as assignee_name, COALESCE(u2.display_name, u2.email) as author_name
 FROM tasks t
 JOIN stages s ON t.stage_id = s.id
 JOIN projects p ON s.project_id = p.id
 LEFT JOIN users u1 ON t.assignee_id = u1.id
 JOIN users u2 ON t.author_id = u2.id
 WHERE %s
-ORDER BY t.due_date NULLS LAST, t.created_at DESC
+ORDER BY COALESCE(t.due_date, p.end_date) NULLS LAST, t.created_at DESC
 LIMIT $%d
 `, where, argPos)
 

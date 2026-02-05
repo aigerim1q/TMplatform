@@ -12,8 +12,9 @@ type CalendarEvent = {
   projectName: string;
   title: string;
   date: string; // ISO date (YYYY-MM-DD)
-  status: "deadline" | "milestone" | "risk";
+  status: "deadline" | "milestone" | "risk" | "task";
   location?: string;
+  taskId?: number;
 };
 
 type Project = {
@@ -28,7 +29,8 @@ const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const statusStyles: Record<CalendarEvent["status"], string> = {
   deadline: "bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-900/30 dark:text-rose-100 dark:ring-rose-800/80",
   milestone: "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-100 dark:ring-emerald-800/80",
-  risk: "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-100 dark:ring-amber-800/80"
+  risk: "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-100 dark:ring-amber-800/80",
+  task: "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-100 dark:ring-indigo-800/80",
 };
 
 function startOfMonth(date: Date) {
@@ -68,6 +70,7 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const todayKey = dateKey(new Date());
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [hoverDay, setHoverDay] = useState<string | null>(null);
 
   const days = useMemo(() => buildMonthDays(currentMonth), [currentMonth]);
 
@@ -86,7 +89,28 @@ export default function CalendarPage() {
             date: (p.end_date || "").slice(0, 10),
             status: "deadline" as const,
           }));
-        setCalendarEvents(mapped);
+        let events: CalendarEvent[] = mapped;
+
+        try {
+          const tasksRes = await fetchJson<any>(`/tasks?mine=true&limit=200`);
+          const tasks: any[] = Array.isArray(tasksRes) ? tasksRes : tasksRes?.items || [];
+          const taskEvents: CalendarEvent[] = tasks
+            .filter((t) => t.due_date)
+            .map((t) => ({
+              id: `task-${t.id}`,
+              taskId: t.id,
+              projectId: t.project_id,
+              projectName: t.project_name,
+              title: t.title,
+              date: (t.due_date || "").slice(0, 10),
+              status: "task" as const,
+            }));
+          events = [...events, ...taskEvents];
+        } catch (err) {
+          console.error("Failed to load tasks for calendar", err);
+        }
+
+        setCalendarEvents(events);
       } catch (err) {
         console.error("Failed to load project deadlines", err);
         setCalendarEvents([]);
@@ -116,13 +140,19 @@ export default function CalendarPage() {
 
   const totalDeadlines = calendarEvents.filter((evt) => evt.status === "deadline").length;
 
+  const goToEvent = (evt?: CalendarEvent) => {
+    if (!evt) return;
+    // Пока ведем на обзор проекта; если понадобится карточка задачи, можно добавить route на страницу задачи
+    router.push(`/project-overview/${evt.projectId}`);
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-50">
       <div className="flex w-screen justify-center border-b border-gray-200 bg-white py-4 dark:border-slate-800 dark:bg-slate-950">
         <Header />
       </div>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8">
+      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-8 bg-white/40 dark:bg-slate-950">
         <section className="flex flex-col gap-4 rounded-3xl border border-gray-200 bg-gradient-to-r from-amber-50 via-white to-white p-6 shadow-sm dark:border-slate-800 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -213,8 +243,11 @@ export default function CalendarPage() {
                     className={`min-h-[90px] rounded-2xl border p-3 text-sm transition hover:border-amber-400/80 hover:shadow-sm dark:hover:border-amber-400/60 ${
                       day
                         ? "border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-                        : "border-dashed border-gray-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40"
+                        : "border-dashed border-gray-200 bg-slate-50 dark:border-slate-800/70 dark:bg-slate-900/30"
                     } ${isToday ? "ring-2 ring-amber-400/80" : ""}`}
+                    onMouseEnter={() => day && setHoverDay(key)}
+                    onMouseLeave={() => setHoverDay((prev) => (prev === key ? null : prev))}
+                    onClick={() => day && goToEvent(eventsForDay[0])}
                   >
                     <div className="flex items-center justify-between">
                       <span className={`text-base font-semibold ${day ? "text-slate-900 dark:text-slate-50" : "text-slate-300"}`}>
@@ -230,7 +263,10 @@ export default function CalendarPage() {
                       {eventsForDay.slice(0, 2).map((evt) => (
                         <div
                           key={evt.id}
-                          onClick={() => router.push(`/project/${evt.projectId}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goToEvent(evt);
+                          }}
                           className={`truncate rounded-xl px-2 py-1 text-[11px] font-semibold ring-1 transition hover:opacity-80 ${statusStyles[evt.status]}`}
                           role="button"
                           aria-label={`Открыть проект ${evt.projectName}`}
@@ -241,6 +277,31 @@ export default function CalendarPage() {
                       ))}
                       {eventsForDay.length > 2 && (
                         <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">+{eventsForDay.length - 2} ещё</div>
+                      )}
+                      {hoverDay === key && eventsForDay.length > 0 && (
+                        <div className="absolute z-20 mt-2 w-64 rounded-2xl border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                          <p className="mb-2 text-[11px] font-semibold text-slate-500">События</p>
+                          <div className="space-y-2">
+                            {eventsForDay.map((evt) => (
+                              <button
+                                key={evt.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  goToEvent(evt);
+                                }}
+                                className="w-full rounded-xl border border-gray-100 px-2 py-2 text-left transition hover:border-amber-300 dark:border-slate-700 dark:hover:border-amber-400/60"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-100">{evt.projectName}</span>
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${statusStyles[evt.status]}`}>
+                                    {evt.status === "deadline" ? "Дедлайн" : evt.status === "task" ? "Задача" : "Событие"}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300 line-clamp-2">{evt.title}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -259,8 +320,8 @@ export default function CalendarPage() {
               {upcoming.map((evt) => (
                 <div
                   key={evt.id}
-                  onClick={() => router.push(`/project/${evt.projectId}`)}
-                  className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
+                  onClick={() => goToEvent(evt)}
+                  className="rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm transition hover:border-amber-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
                   role="button"
                   aria-label={`Открыть проект ${evt.projectName}`}
                 >
@@ -270,7 +331,7 @@ export default function CalendarPage() {
                       <p className="text-xs text-slate-500 dark:text-slate-400">{evt.title}</p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ring-1 ${statusStyles[evt.status]}`}>
-                      {evt.status === "deadline" ? "Дедлайн" : evt.status === "milestone" ? "Этап" : "Риск"}
+                      {evt.status === "deadline" ? "Дедлайн" : evt.status === "milestone" ? "Этап" : evt.status === "task" ? "Задача" : "Риск"}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">

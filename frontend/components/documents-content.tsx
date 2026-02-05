@@ -3,6 +3,7 @@
 import { Upload, SlidersHorizontal, Search, Download, Clock, AlertCircle, MoreVertical, FileText, FileSpreadsheet, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useRef, useState } from "react";
 
 const recentDocuments = [
   {
@@ -142,33 +143,54 @@ function getFileIcon(type: string) {
 }
 
 export default function DocumentsContent() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+
+  const handleUploadClick = () => fileInputRef.current?.click();
+  const handleFilesChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    setSelectedFiles(files.map((f) => f.name));
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-gray-900 dark:text-slate-100">
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">ЖЦП Документы</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ЖЦП Документы</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-slate-300">
             Управление и отслеживание жизненного цикла проекта
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button className="gap-2 bg-gray-900 text-white hover:bg-gray-800">
+          <Button className="gap-2 bg-gray-900 text-white hover:bg-gray-800 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400" onClick={handleUploadClick}>
             <Upload size={16} />
             Загрузить документ
           </Button>
-          <Button variant="outline" className="gap-2 border-gray-300 bg-transparent">
+          <Button variant="outline" className="gap-2 border-gray-300 bg-transparent dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800">
             <SlidersHorizontal size={16} />
             Фильтр
           </Button>
         </div>
       </div>
 
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png"
+        className="hidden"
+        onChange={handleFilesChosen}
+      />
+      {selectedFiles.length > 0 && (
+        <p className="text-sm text-gray-600 dark:text-slate-300">Выбрано файлов: {selectedFiles.join(', ')}</p>
+      )}
+
       {/* Recent Uploads Section */}
       <div className="space-y-4">
-        <div className="inline-flex items-center gap-2 rounded-full bg-yellow-100 px-4 py-2">
+        <div className="inline-flex items-center gap-2 rounded-full bg-yellow-100 px-4 py-2 dark:bg-amber-300/20">
           <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-          <span className="text-sm font-medium text-gray-800">Недавние загрузки: 4</span>
+          <span className="text-sm font-medium text-gray-800 dark:text-slate-100">Недавние загрузки: 4</span>
         </div>
 
         <div className="grid grid-cols-4 gap-4">
@@ -176,27 +198,27 @@ export default function DocumentsContent() {
             <div
               key={doc.id}
               className={`flex h-[180px] w-full flex-col rounded-2xl border p-4 ${
-                doc.urgent ? "border-red-200 bg-red-50" : "border-gray-200 bg-white"
+                doc.urgent ? "border-red-200 bg-red-50 dark:border-red-400/40 dark:bg-red-500/15" : "border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900"
               }`}
             >
               <div className="flex items-center justify-between">
                 {doc.urgent ? (
-                  <span className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertCircle size={12} />
+                  <span className="flex items-center gap-1 text-xs text-red-600 dark:text-red-300">
+                    <AlertCircle size={12} className="dark:text-red-300" />
                     Срочно
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-500">Проект: {doc.project}</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400">Проект: {doc.project}</span>
                 )}
                 <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
-                  doc.urgent ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
+                  doc.urgent ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-200" : "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-200"
                 }`}>
-                  <Clock size={10} />
+                  <Clock size={10} className="dark:text-inherit" />
                   {doc.time}
                 </span>
               </div>
-              <h3 className="mt-3 text-sm font-semibold text-gray-900 line-clamp-2">{doc.title}</h3>
-              <p className="mt-1 flex-1 text-xs text-gray-500 line-clamp-2">{doc.description}</p>
+              <h3 className="mt-3 text-sm font-semibold text-gray-900 line-clamp-2 dark:text-white">{doc.title}</h3>
+              <p className="mt-1 flex-1 text-xs text-gray-500 line-clamp-2 dark:text-slate-300">{doc.description}</p>
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex -space-x-2">
                   {doc.avatars.map((avatar, idx) => (
@@ -208,12 +230,12 @@ export default function DocumentsContent() {
                     />
                   ))}
                   {doc.urgent && (
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-100">
-                      <AlertCircle size={14} className="text-red-500" />
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-100 dark:bg-red-500/20">
+                      <AlertCircle size={14} className="text-red-500 dark:text-red-200" />
                     </div>
                   )}
                 </div>
-                <button className="text-gray-400 hover:text-gray-600">
+                <button className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-200">
                   <Download size={16} />
                 </button>
               </div>
@@ -225,15 +247,15 @@ export default function DocumentsContent() {
       {/* Document Archive Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-100 px-4 py-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-yellow-100 px-4 py-2 dark:bg-amber-300/20">
             <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
-            <span className="text-sm font-medium text-gray-800">Архив документов: 128</span>
+            <span className="text-sm font-medium text-gray-800 dark:text-slate-100">Архив документов: 128</span>
           </div>
           <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
             <Input
               placeholder="Поиск по названию..."
-              className="pl-9 border-gray-200"
+              className="pl-9 border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
             />
           </div>
         </div>
@@ -242,18 +264,18 @@ export default function DocumentsContent() {
           {archivedDocuments.map((doc) => (
             <div
               key={doc.id}
-              className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4"
+              className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="flex items-center gap-4">
                 {getFileIcon(doc.icon)}
                 <div>
                   <div className="flex items-center gap-3">
-                    <h3 className="text-sm font-semibold text-gray-900">{doc.title}</h3>
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{doc.title}</h3>
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-slate-800 dark:text-slate-300">
                       {doc.fileType}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center gap-4 text-xs text-gray-500">
+                  <div className="mt-1 flex items-center gap-4 text-xs text-gray-500 dark:text-slate-400">
                     <span className="flex items-center gap-1">
                       <FileText size={12} />
                       Проект: {doc.project}
@@ -271,7 +293,7 @@ export default function DocumentsContent() {
               </div>
               <div className="flex items-center gap-3">
                 {getStatusBadge(doc.status)}
-                <button className="text-gray-400 hover:text-gray-600">
+                <button className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300">
                   <MoreVertical size={16} />
                 </button>
               </div>
@@ -281,7 +303,7 @@ export default function DocumentsContent() {
 
         {/* Show More Button */}
         <div className="flex justify-center pt-4">
-          <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+          <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200">
             Показать больше документов
             <svg
               className="h-4 w-4"

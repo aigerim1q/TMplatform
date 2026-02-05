@@ -27,7 +27,7 @@ func GetManager(ctx context.Context, conn *sql.DB, userID string) (*HierarchyUse
 
 	// 2) Load manager (can be NULL)
 	const q = `
-SELECT m.id, m.email, m.name, m.manager_id
+SELECT m.id, m.email, COALESCE(m.display_name, m.email) as display_name, m.manager_id
 FROM users u
 JOIN users m ON m.id = u.manager_id
 WHERE u.id = $1
@@ -57,10 +57,10 @@ func ListDirectSubordinates(ctx context.Context, conn *sql.DB, managerID string)
 	}
 
 	const q = `
-SELECT id, email, name, manager_id
+SELECT id, email, COALESCE(display_name, email) as display_name, manager_id
 FROM users
 WHERE manager_id = $1
-ORDER BY name ASC
+ORDER BY display_name ASC
 `
 	rows, err := conn.QueryContext(ctx, q, managerID)
 	if err != nil {

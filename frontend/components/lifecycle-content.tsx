@@ -42,25 +42,25 @@ export default function MainContent() {
   ];
 
   return (
-    <main className="w-full flex flex-col items-center px-4 py-12">
+    <main className="w-full flex flex-col items-center px-4 py-12 text-gray-900 dark:text-slate-100">
       {/* AI Assistant Badge */}
-      <div className="mb-8 flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2">
-        <svg className="h-5 w-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+      <div className="mb-8 flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 dark:bg-purple-400/10">
+        <svg className="h-5 w-5 text-purple-600 dark:text-purple-200" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
-        <span className="text-sm font-semibold text-purple-600">AI ASSISTANT</span>
+        <span className="text-sm font-semibold text-purple-600 dark:text-purple-100">AI ASSISTANT</span>
       </div>
 
       {/* Main Heading */}
-      <h1 className="mb-3 text-center text-4xl font-bold text-gray-900">
+      <h1 className="mb-3 text-center text-4xl font-bold text-gray-900 dark:text-white">
         Выберите жизненный цикл проекта
       </h1>
-      <p className="mb-8 max-w-3xl text-center text-gray-600">
+      <p className="mb-8 max-w-3xl text-center text-gray-600 dark:text-slate-300">
         Наш ИИ поможет вам настроить структуру проекта. Выберите шаблон, который лучше всего соответствует вашим текущим задачам.
       </p>
 
       {/* Recommended Badge */}
-      <div className="mb-8 flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2">
+      <div className="mb-8 flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2 dark:bg-slate-800">
         <div className="h-2 w-2 rounded-full bg-green-500"></div>
         <span className="text-sm font-medium text-white">Рекомендуемые шаблоны</span>
       </div>
@@ -71,7 +71,7 @@ export default function MainContent() {
           <button
             key={card.id}
             onClick={() => setSelectedCard(card.id)}
-            className="relative flex flex-col overflow-hidden rounded-xl border-2 bg-white p-8 text-left transition-all duration-200 min-h-[320px]"
+            className="relative flex flex-col overflow-hidden rounded-xl border-2 bg-white p-8 text-left transition-all duration-200 min-h-[320px] dark:bg-slate-900/80 dark:border-slate-800 dark:text-slate-100"
             style={{
               borderColor: selectedCard === card.id ? '#D4AF37' : '#E5E7EB',
               boxShadow: selectedCard === card.id ? '0 0 0 3px rgba(212, 175, 55, 0.1)' : 'none',
@@ -85,21 +85,21 @@ export default function MainContent() {
             )}
 
             {/* Tag */}
-            <div className={`mb-5 inline-block rounded-full px-4 py-1.5 text-sm font-semibold w-fit ${card.tagColor}`}>
+            <div className={`mb-5 inline-block rounded-full px-4 py-1.5 text-sm font-semibold w-fit ${card.tagColor} dark:bg-white/10 dark:text-white`}>
               {card.tag}
             </div>
 
             {/* Title */}
-            <h3 className="mb-3 text-xl font-bold text-gray-900">{card.title}</h3>
+            <h3 className="mb-3 text-xl font-bold text-gray-900 dark:text-white">{card.title}</h3>
 
             {/* Description */}
-            <p className="mb-5 flex-1 text-base text-gray-600 leading-relaxed">{card.description}</p>
+            <p className="mb-5 flex-1 text-base text-gray-600 leading-relaxed dark:text-slate-200">{card.description}</p>
 
             {/* Items List */}
             <div className="mb-5 space-y-3">
               {card.items.map((item, idx) => (
                 item && (
-                  <div key={idx} className="flex items-center gap-2 text-base text-gray-600">
+                  <div key={idx} className="flex items-center gap-2 text-base text-gray-600 dark:text-slate-200">
                     <div className="h-2.5 w-2.5 rounded-full bg-green-500"></div>
                     {item}
                   </div>
@@ -108,9 +108,9 @@ export default function MainContent() {
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between border-t border-gray-200 pt-5">
-              <span className="text-sm text-gray-500">{card.used}</span>
-              <ChevronRight className="h-6 w-6 text-gray-400" />
+            <div className="flex items-center justify-between border-t border-gray-200 pt-5 dark:border-slate-800">
+              <span className="text-sm text-gray-500 dark:text-slate-400">{card.used}</span>
+              <ChevronRight className="h-6 w-6 text-gray-400 dark:text-slate-500" />
             </div>
           </button>
         ))}
@@ -125,22 +125,22 @@ export default function MainContent() {
             style={{
               opacity: selectedCard ? 1 : 0.6,
             }}
-            className="rounded-full bg-amber-100 px-10 py-4 text-base font-semibold text-amber-900 transition-opacity duration-200 hover:bg-amber-200 disabled:cursor-not-allowed"
+            className="rounded-full bg-amber-100 px-10 py-4 text-base font-semibold text-amber-900 transition-opacity duration-200 hover:bg-amber-200 disabled:cursor-not-allowed dark:bg-amber-400/20 dark:text-amber-100 dark:hover:bg-amber-400/30"
             disabled={!selectedCard}
           >
             Продолжить →
           </button>
-          <div className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-8 py-4">
-            <span className="text-base text-gray-600">Выбран:</span>
-            <span className="text-base font-semibold text-gray-900">{selectedCard ? cards.find(c => c.id === selectedCard)?.title : '?'}</span>
+          <div className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-8 py-4 dark:border-slate-700 dark:bg-slate-900">
+            <span className="text-base text-gray-600 dark:text-slate-300">Выбран:</span>
+            <span className="text-base font-semibold text-gray-900 dark:text-white">{selectedCard ? cards.find(c => c.id === selectedCard)?.title : '?'}</span>
           </div>
         </div>
 
         {/* Specific Tasks Section */}
         <div className="mb-8">
-          <div className="mb-6 flex items-center gap-2 rounded-full bg-green-100 px-5 py-2.5 w-fit">
-            <Zap className="h-5 w-5 text-green-600" />
-            <span className="text-base font-semibold text-green-600">Специфические задачи</span>
+          <div className="mb-6 flex items-center gap-2 rounded-full bg-green-100 px-5 py-2.5 w-fit dark:bg-green-400/10">
+            <Zap className="h-5 w-5 text-green-600 dark:text-green-200" />
+            <span className="text-base font-semibold text-green-600 dark:text-green-100">Специфические задачи</span>
           </div>
 
           {/* Task Items */}
@@ -169,14 +169,14 @@ export default function MainContent() {
             ].map((task, idx) => {
               const TaskIcon = task.icon;
               return (
-                <div key={idx} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-5 hover:bg-gray-50 transition-colors">
+                <div key={idx} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-5 hover:bg-gray-50 transition-colors dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-center gap-5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-300 bg-gray-50">
-                      <TaskIcon className="h-6 w-6 text-gray-600" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-gray-300 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+                      <TaskIcon className="h-6 w-6 text-gray-600 dark:text-slate-200" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900 text-lg">{task.title}</h4>
-                      <p className="text-base text-gray-600">{task.desc}</p>
+                      <h4 className="font-semibold text-gray-900 text-lg dark:text-white">{task.title}</h4>
+                      <p className="text-base text-gray-600 dark:text-slate-300">{task.desc}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-5">
@@ -189,7 +189,7 @@ export default function MainContent() {
                       </button>
                     ) : (
                       <div className="text-right">
-                        <p className="text-xs text-gray-500">{task.complexity}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{task.complexity}</p>
                         <div className="flex gap-1.5">
                           {[...Array(task.dots)].map((_, i) => (
                             <div
@@ -203,7 +203,7 @@ export default function MainContent() {
                         </div>
                       </div>
                     )}
-                    <ChevronRight className="h-6 w-6 text-gray-400" />
+                    <ChevronRight className="h-6 w-6 text-gray-400 dark:text-slate-500" />
                   </div>
                 </div>
               );

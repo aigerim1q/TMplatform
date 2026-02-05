@@ -1,25 +1,89 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Header from "@/components/header"
-import { Camera, Save, User } from "lucide-react"
+import { Camera, Save, User, Loader2 } from "lucide-react"
+import { logoutLocal } from "@/lib/auth"
+import { fetchJson } from "@/lib/api"
 
 export default function ProfilePage() {
   const router = useRouter()
-  const [name, setName] = useState("Омар Ахмет")
-  const [title, setTitle] = useState("Руководитель проектов")
-  const [email, setEmail] = useState("omar@quryls.kz")
-  const [avatar, setAvatar] = useState(
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-  )
+  const [name, setName] = useState("Пользователь")
+  const [title, setTitle] = useState("Роль не указана")
+  const [email, setEmail] = useState("")
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   const handleAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      const url = URL.createObjectURL(file)
-      setAvatar(url)
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setAvatar(reader.result)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const initials = useMemo(() => {
+    const source = (name || email || "").trim()
+    if (!source) return "?"
+    const parts = source.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+    return source.slice(0, 2).toUpperCase()
+  }, [name, email])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        setLoading(true)
+        const me = await fetchJson<{ id: number; email: string; name?: string; role?: string; avatar_url?: string | null }>("/me")
+        if (!alive) return
+        setEmail(me.email || "")
+        setName(me.name?.trim() || me.email?.split("@")[0] || "Пользователь")
+        setTitle(me.role ? me.role.toUpperCase() : "Роль не указана")
+        setAvatar(me.avatar_url || null)
+        setError(null)
+      } catch (err: any) {
+        if (!alive) return
+        setError(err?.message || "Не удалось загрузить профиль")
+      } finally {
+        if (alive) setLoading(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const handleSave = async () => {
+    try {
+      setSaving(true)
+      setSaved(false)
+      await fetchJson("/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          avatar_url: avatar,
+        }),
+      })
+      window.dispatchEvent(
+        new CustomEvent("me-updated", { detail: { avatar_url: avatar, name } })
+      )
+      setSaved(true)
+    } catch (err: any) {
+      setError(err?.message || "Не удалось сохранить профиль")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -40,8 +104,12 @@ export default function ProfilePage() {
           {/* Avatar card */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-4">
-              <div className="relative h-24 w-24 overflow-hidden rounded-full border border-slate-200 dark:border-slate-700">
-                <Image src={avatar} alt="Avatar" fill unoptimized sizes="96px" className="object-cover" />
+              <div className="relative h-24 w-24 overflow-hidden rounded-full border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                {avatar ? (
+                  <Image src={avatar} alt="Avatar" fill unoptimized sizes="96px" className="object-cover" />
+                ) : (
+                  <span className="text-xl font-semibold text-slate-700 dark:text-slate-100">{initials}</span>
+                )}
               </div>
               <div>
                 <p className="text-sm text-slate-500 dark:text-slate-300">Фото профиля</p>
@@ -60,6 +128,12 @@ export default function ProfilePage() {
               <User className="h-4 w-4" /> Основная информация
             </div>
 
+            {error && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-900/30 dark:text-red-100">
+                {error}
+              </div>
+            )}
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase text-slate-500">Имя</label>
@@ -67,6 +141,7 @@ export default function ProfilePage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-amber-400 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -75,6 +150,7 @@ export default function ProfilePage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-amber-400 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
@@ -84,13 +160,18 @@ export default function ProfilePage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-amber-400 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
+                  disabled={loading}
                 />
               </div>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <button className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/90">
-                <Save className="h-4 w-4" /> Сохранить изменения
+              <button
+                onClick={handleSave}
+                disabled={loading || saving}
+                className="inline-flex items-center gap-2 rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/80 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-white/90"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Сохранить изменения
               </button>
               <button
                 onClick={() => router.back?.()}
@@ -98,7 +179,21 @@ export default function ProfilePage() {
               >
                 Отменить
               </button>
+              <button
+                onClick={() => {
+                  logoutLocal()
+                  router.push("/login")
+                }}
+                className="inline-flex items-center gap-2 rounded-full border border-red-200 px-5 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:text-red-200 dark:hover:bg-red-900/30"
+              >
+                Выйти из аккаунта
+              </button>
             </div>
+            {saved && (
+              <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-100">
+                Профиль сохранён
+              </div>
+            )}
           </div>
         </div>
       </main>

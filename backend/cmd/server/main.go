@@ -106,6 +106,8 @@ func main() {
 		r.Use(app.authMiddleware)
 
 		r.Get("/me", app.handleMe)
+		r.Put("/me", app.handleMeUpdate)
+		r.Get("/users", app.handleUsersList)
 
 		// notifications (protected)
 		r.Get("/notifications", app.handleNotificationsList)
@@ -116,10 +118,16 @@ func main() {
 		r.Get("/tasks", app.handleTasksList)
 		r.Post("/tasks", app.handleTaskCreate)
 		r.Get("/tasks/{id}", app.handleTaskGet)
+		r.Put("/tasks/{id}/status", app.handleTaskStatusUpdate)
+		r.Get("/tasks/{id}/comments", app.handleTaskCommentsList)
+		r.Post("/tasks/{id}/comments", app.handleTaskCommentCreate)
 		r.Post("/tasks/{id}/files", app.handleTaskFileUpload)
 
-		// stages
+		// stages & project assignees
 		r.Post("/projects/{id}/stages", app.handleProjectStageCreate)
+		r.Get("/projects/{id}/assignees", app.handleProjectAssigneesList)
+		r.Post("/projects/{id}/assignees", app.handleProjectAssigneesSave)
+		r.Delete("/projects/{id}", app.handleProjectDelete)
 	})
 
 	log.Printf("server started on port %s", appPort)
@@ -136,6 +144,7 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 		OrgID    int    `json:"org_id"`
 		Role     string `json:"role"`
+		Name     string `json:"name"`
 	}
 
 	var body req
@@ -145,10 +154,12 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body.Email = strings.TrimSpace(strings.ToLower(body.Email))
-	body.Role = strings.TrimSpace(strings.ToLower(body.Role))
+	// Public registration: always downgraded to employee to prevent arbitrary admin creation
+	role := "employee"
+	name := strings.TrimSpace(body.Name)
 
-	if body.Email == "" || len(body.Password) < 8 || body.OrgID <= 0 || !isValidRole(body.Role) {
-		writeErr(w, http.StatusBadRequest, "validation failed (email, password>=8, org_id>0, role)")
+	if body.Email == "" || len(body.Password) < 8 || body.OrgID <= 0 {
+		writeErr(w, http.StatusBadRequest, "validation failed (email, password>=8, org_id>0)")
 		return
 	}
 
@@ -160,15 +171,15 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	var userID int
 	err = a.DB.QueryRow(r.Context(),
-		`INSERT INTO users (org_id, email, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id`,
-		body.OrgID, body.Email, string(hash), body.Role,
+		`INSERT INTO users (org_id, email, password_hash, role, display_name) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+		body.OrgID, body.Email, string(hash), role, nullIfEmpty(name),
 	).Scan(&userID)
 	if err != nil {
 		writeErr(w, http.StatusConflict, "user already exists or db error")
 		return
 	}
 
-	token, err := a.issueJWT(AuthCtx{UserID: userID, OrgID: body.OrgID, Role: body.Role})
+	token, err := a.issueJWT(AuthCtx{UserID: userID, OrgID: body.OrgID, Role: role})
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "token error")
 		return
@@ -178,7 +189,8 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		"id":          userID,
 		"email":       body.Email,
 		"org_id":      body.OrgID,
-		"role":        body.Role,
+		"role":        role,
+		"name":        nullIfEmpty(name),
 		"accessToken": token,
 	})
 }
@@ -205,13 +217,15 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		id           int
 		orgID        int
 		role         string
+		displayName  string
+		avatarURL    *string
 		passwordHash string
 	)
 
 	err := a.DB.QueryRow(r.Context(),
-		`SELECT id, org_id, role, password_hash FROM users WHERE email=$1`,
+		`SELECT id, org_id, role, COALESCE(display_name,''), avatar_url, password_hash FROM users WHERE email=$1`,
 		body.Email,
-	).Scan(&id, &orgID, &role, &passwordHash)
+	).Scan(&id, &orgID, &role, &displayName, &avatarURL, &passwordHash)
 
 	if err != nil {
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
@@ -231,12 +245,122 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"accessToken": token,
+		"name":        displayName,
+		"avatar_url":  avatarURL,
+		"email":       body.Email,
+		"org_id":      orgID,
+		"role":        role,
 	})
 }
 
 func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 	auth := mustAuth(r)
-	writeJSON(w, http.StatusOK, auth)
+	if auth.UserID <= 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var (
+		email       string
+		role        string
+		orgID       int
+		displayName string
+		avatarURL   *string
+	)
+
+	err := a.DB.QueryRow(r.Context(),
+		`SELECT email, role, org_id, COALESCE(display_name,''), avatar_url FROM users WHERE id=$1`,
+		auth.UserID,
+	).Scan(&email, &role, &orgID, &displayName, &avatarURL)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id":         auth.UserID,
+		"email":      email,
+		"org_id":     orgID,
+		"role":       role,
+		"name":       displayName,
+		"avatar_url": avatarURL,
+	})
+}
+
+func (a *App) handleMeUpdate(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var body struct {
+		Name      *string `json:"name"`
+		AvatarURL *string `json:"avatar_url"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	name := ""
+	if body.Name != nil {
+		name = strings.TrimSpace(*body.Name)
+	}
+	avatarURL := body.AvatarURL
+
+	_, err := a.DB.Exec(r.Context(),
+		`UPDATE users SET display_name = $1, avatar_url = $2 WHERE id = $3`,
+		nullIfEmpty(name), avatarURL, auth.UserID,
+	)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":         true,
+		"name":       nullIfEmpty(name),
+		"avatar_url": avatarURL,
+	})
+}
+
+func (a *App) handleUsersList(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `SELECT id, email, role, COALESCE(display_name,'') FROM users WHERE org_id = $1 ORDER BY email ASC`, auth.OrgID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	defer rows.Close()
+
+	items := []map[string]any{}
+	for rows.Next() {
+		var (
+			id    int
+			email string
+			role  string
+			name  string
+		)
+		if err := rows.Scan(&id, &email, &role, &name); err != nil {
+			writeErr(w, http.StatusInternalServerError, "db error")
+			return
+		}
+		items = append(items, map[string]any{
+			"id":    id,
+			"email": email,
+			"role":  role,
+			"name":  name,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 /* =========================
@@ -333,8 +457,9 @@ func (a *App) handleProjectsList(w http.ResponseWriter, r *http.Request) {
 
 	sort := r.URL.Query().Get("sort")
 	order := r.URL.Query().Get("order")
+	mineOnly := strings.EqualFold(r.URL.Query().Get("mine"), "true") || r.URL.Query().Get("mine") == "1"
 
-	items, err := dbpkg.ListProjects(r.Context(), a.DB, auth.OrgID, limit, offset, sort, order)
+	items, err := dbpkg.ListProjects(r.Context(), a.DB, auth.OrgID, auth.UserID, mineOnly, limit, offset, sort, order)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "db error")
 		return
@@ -384,6 +509,90 @@ func (a *App) handleProjectGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, item)
+}
+
+func (a *App) handleProjectAssigneesList(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	idStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(idStr)
+	if err != nil || pid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	project, err := dbpkg.GetProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	if project.OrgID != auth.OrgID {
+		writeErr(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	assignees, err := dbpkg.ListProjectAssignees(r.Context(), a.DB, pid)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"items": assignees})
+}
+
+func (a *App) handleProjectAssigneesSave(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	idStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(idStr)
+	if err != nil || pid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	project, err := dbpkg.GetProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	if project.OrgID != auth.OrgID {
+		writeErr(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	var body struct {
+		UserIDs []int `json:"user_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+
+	if err := dbpkg.SetProjectAssignees(r.Context(), a.DB, pid, body.UserIDs); err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	assignees, _ := dbpkg.ListProjectAssignees(r.Context(), a.DB, pid)
+	writeJSON(w, http.StatusOK, map[string]any{"items": assignees})
 }
 
 func (a *App) handleProjectStagesList(w http.ResponseWriter, r *http.Request) {
@@ -644,6 +853,49 @@ func (a *App) handleProjectsCreate(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, item)
 }
 
+func (a *App) handleProjectDelete(w http.ResponseWriter, r *http.Request) {
+	auth := mustAuth(r)
+	if auth.UserID <= 0 || auth.OrgID <= 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	idStr := chi.URLParam(r, "id")
+	pid, err := strconv.Atoi(idStr)
+	if err != nil || pid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	project, err := dbpkg.GetProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeErr(w, http.StatusNotFound, "not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+
+	// Allow delete to any authenticated user of the same org (owner, manager, admin, or regular employee).
+	if project.OrgID != auth.OrgID {
+		writeErr(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	deleted, err := dbpkg.SoftDeleteProject(r.Context(), a.DB, auth.OrgID, pid)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "db error")
+		return
+	}
+	if !deleted {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func (a *App) handleStageUpdate(w http.ResponseWriter, r *http.Request) {
 	auth := mustAuth(r)
 	if auth.UserID <= 0 || auth.OrgID <= 0 {
@@ -830,7 +1082,7 @@ func toInt(v any) (int, bool) {
 
 func isValidProjectStatus(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "draft", "active", "paused", "done":
+	case "draft", "active", "paused", "done", "deleted":
 		return true
 	default:
 		return false
@@ -880,11 +1132,19 @@ func parseFloatDefault(v string, def float64) float64 {
 	return def
 }
 
+func nullIfEmpty(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization,Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept,Authorization,Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -917,8 +1177,8 @@ func (a *App) ensureDevUser(ctx context.Context) (*AuthCtx, error) {
 	role = "admin"
 	orgID = 1
 	if err := a.DB.QueryRow(ctx,
-		`INSERT INTO users (org_id, email, password_hash, role) VALUES ($1,$2,$3,$4) RETURNING id`,
-		orgID, email, string(passwordHash), role,
+		`INSERT INTO users (org_id, email, password_hash, role, display_name) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+		orgID, email, string(passwordHash), role, "Dev User",
 	).Scan(&id); err != nil {
 		return nil, err
 	}
